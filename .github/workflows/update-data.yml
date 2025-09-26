@@ -14,7 +14,7 @@ on:
         default: 'false'
         type: boolean
 
-  # Run on push to main branch for testing
+  # Run on push to main branch for testing.
   push:
     branches: [ main ]
 
