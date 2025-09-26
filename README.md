@@ -25,16 +25,16 @@ This repository generates individual HTML pages for each chart and table, design
 ## Live Links
 
 
-- https://ASU-KE.github.io/ASUHOMeasles/timeline.html
-- https://ASU-KE.github.io/ASUHOMeasles/recent_trends.html  
-- https://ASU-KE.github.io/ASUHOMeasles/rnaught_comparison.html
-- https://ASU-KE.github.io/ASUHOMeasles/state_map.html
-- https://ASU-KE.github.io/ASUHOMeasles/lives_saved.html
-- https://ASU-KE.github.io/ASUHOMeasles/timeline_table.html
-- https://ASU-KE.github.io/ASUHOMeasles/recent_trends_table.html
-- https://ASU-KE.github.io/ASUHOMeasles/rnaught_table.html
-- https://ASU-KE.github.io/ASUHOMeasles/state_map_table.html
-- https://ASU-KE.github.io/ASUHOMeasles/lives_saved_table.html
+- https://mmcalend.github.io/ASU-HO-Measles-Visualizations/timeline.html
+- https://mmcalend.github.io/ASU-HO-Measles-Visualizations/recent_trends.html  
+- https://mmcalend.github.io/ASU-HO-Measles-Visualizations/rnaught_comparison.html
+- https://mmcalend.github.io/ASU-HO-Measles-Visualizations/state_map.html
+- https://mmcalend.github.io/ASU-HO-Measles-Visualizations/lives_saved.html
+- https://mmcalend.github.io/ASU-HO-Measles-Visualizations/timeline_table.html
+- https://mmcalend.github.io/ASU-HO-Measles-Visualizations/recent_trends_table.html
+- https://mmcalend.github.io/ASU-HO-Measles-Visualizations/rnaught_table.html
+- https://mmcalend.github.io/ASU-HO-Measles-Visualizations/state_map_table.html
+- https://mmcalend.github.io/ASU-HO-Measles-Visualizations/lives_saved_table.html
 
 ## Automatic Updates
 
