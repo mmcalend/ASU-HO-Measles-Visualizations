@@ -1155,7 +1155,7 @@ def create_lives_saved_chart(vaccine_impact_data):
     import math
 
     color_palette = [
-        '#4575b4', '#91bfdb', '#e0f3f8', '#ffffbf', '#fee090', '#fc8d59', '#d73027'
+        '#d73027', '#fc8d59', '#fee090', '#ffffbf', '#e0f3f8', '#91bfdb', '#4575b4'
     ]
 
     if vaccine_impact_data.empty:
