@@ -194,7 +194,7 @@ If a chart fails to render:
 - Logs detailed error information
 - Other charts continue to function
 
-## 📊 Iframe Embedding
+## Iframe Embedding
 
 ### Basic Embed
 
