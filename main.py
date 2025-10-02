@@ -4,7 +4,6 @@ Creates interactive HTML pages with error handling and resilience features
 """
 
 import sys
-import logging
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Optional
@@ -12,9 +11,13 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 
+# Create logs directory BEFORE importing anything that uses logging
+Path('logs').mkdir(exist_ok=True)
+
+import logging
 from data_manager import DataManager
 
-# Configure logging
+# Configure logging AFTER directory creation
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -38,6 +41,7 @@ def create_html_wrapper(fig: go.Figure, filename: str, title: str) -> str:
         HTML content as string
     """
     try:
+        # Convert figure to HTML div
         plot_html = fig.to_html(
             include_plotlyjs='cdn',
             div_id='chart',
