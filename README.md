@@ -34,6 +34,7 @@ Automated measles surveillance visualizations for iframe embedding.
 - https://mmcalend.github.io/ASU-HO-Measles-Visualizations/rnaught_table.html
 - https://mmcalend.github.io/ASU-HO-Measles-Visualizations/state_map_table.html
 - https://mmcalend.github.io/ASU-HO-Measles-Visualizations/lives_saved_table.html
+- https://mmcalend.github.io/ASU-HO-Measles-Visualizations/southwest_weekly.html
 
 ## Automatic Updates
 
