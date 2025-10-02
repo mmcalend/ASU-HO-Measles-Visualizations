@@ -1023,14 +1023,17 @@ def create_bivariate_choropleth(usmap_data):
 
     # Add axis titles with better positioning and requested formatting
     # Horizontal axis title (above the grid)
+# Horizontal axis title (above the grid)
     fig.add_annotation(
         text="← MMR Vaccine Coverage →",
         xref="paper", yref="paper",
         x=legend_x + 1.5 * (cell_size + spacing),
         y=legend_y - 0.005,
         showarrow=False,
-        font=dict(size=14, color='black', family='Arial'))
-
+        font=dict(size=14, color='black', family='Arial'),
+        xanchor="center", 
+        yanchor="bottom"   
+    )
     fig.add_annotation(
         text="← Case Rate →",
         xref="paper", yref="paper",
