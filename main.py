@@ -1,596 +1,523 @@
-"""
-Main script for generating measles data visualizations
-Creates interactive HTML pages with error handling and resilience features
-"""
-
-import sys
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, Optional
 import pandas as pd
-import plotly.graph_objects as go
-import plotly.express as px
-
-# Create logs directory BEFORE importing anything that uses logging
-Path('logs').mkdir(exist_ok=True)
-
+import numpy as np
+import json
+import os
+from datetime import datetime
+import requests
+from pathlib import Path
 import logging
-from data_manager import DataManager
 
-# Configure logging AFTER directory creation
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/measles_viz.log'),
-        logging.StreamHandler()
-    ]
-)
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-
-def create_html_wrapper(fig: go.Figure, filename: str, title: str) -> str:
-    """
-    Create HTML page with error handling and responsive design
-    
-    Args:
-        fig: Plotly figure object
-        filename: Output filename
-        title: Page title
-        
-    Returns:
-        HTML content as string
-    """
-    try:
-        # Convert figure to HTML div
-        plot_html = fig.to_html(
-            include_plotlyjs='cdn',
-            div_id='chart',
-            config={
-                'displayModeBar': False,
-                'responsive': True
-            }
-        )
-        chart_content = plot_html
-    except Exception as e:
-        logging.error(f"Error converting figure to HTML for {filename}: {str(e)}")
-        # Fallback error message
-        chart_content = f"""
-        <div style="padding: 40px; text-align: center; color: #d73027; font-family: Arial, sans-serif;">
-            <h2>⚠ Visualization Temporarily Unavailable</h2>
-            <p style="color: #666;">Error: {str(e)}</p>
-            <p style="color: #666;">This page will update automatically during the next scheduled refresh.</p>
-            <p style="color: #999; font-size: 0.9em; margin-top: 30px;">
-                Last update attempt: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
-            </p>
-        </div>
+class DataManager:
+    def __init__(self, data_dir="data", backup_dir="data/backups"):
         """
-    
-    html_template = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title}</title>
-    <style>
-        body {{
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
-        }}
-        #chart {{
-            width: 100%;
-            height: 100vh;
-        }}
-        .error-container {{
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-        }}
-    </style>
-</head>
-<body>
-    {chart_content}
-    
-    <script>
-        // Notify parent window of successful load
-        window.addEventListener('load', function() {{
-            if (window.parent !== window) {{
-                window.parent.postMessage({{
-                    type: 'chartLoaded',
-                    page: '{filename}'
-                }}, '*');
-            }}
-        }});
+        Initialize DataManager with data and backup directories
         
-        // Handle runtime errors gracefully
-        window.addEventListener('error', function(e) {{
-            console.error('Runtime error:', e);
-            // Optionally notify parent of error
-            if (window.parent !== window) {{
-                window.parent.postMessage({{
-                    type: 'chartError',
-                    page: '{filename}',
-                    error: e.message
-                }}, '*');
-            }}
-        }});
+        Args:
+            data_dir (str): Directory for current data files
+            backup_dir (str): Directory for backup data files
+        """
+        self.data_dir = Path(data_dir)
+        self.backup_dir = Path(backup_dir)
+        self.weekly_dir = Path(data_dir) / "weekly_tracking"
         
-        // Responsive resize handling
-        window.addEventListener('resize', function() {{
-            if (window.Plotly) {{
-                Plotly.Plots.resize(document.getElementById('chart'));
-            }}
-        }});
-    </script>
-</body>
-</html>"""
-    
-    return html_template
+        # Create directories if they don't exist
+        self.data_dir.mkdir(exist_ok=True)
+        self.backup_dir.mkdir(exist_ok=True)
+        self.weekly_dir.mkdir(exist_ok=True)
+        
+        # Data source URLs
+        self.data_sources = {
+            'usmeasles': 'https://www.cdc.gov/wcms/vizdata/measles/MeaslesCasesYear.json',
+            'usmap_cases': 'https://www.cdc.gov/wcms/vizdata/measles/MeaslesCasesMap.json',
+            'vaccine_with': 'https://raw.githubusercontent.com/WorldHealthOrganization/epi50-vaccine-impact/refs/tags/v1.0/extern/raw/epi50_measles_vaccine.csv',
+            'vaccine_without': 'https://raw.githubusercontent.com/WorldHealthOrganization/epi50-vaccine-impact/refs/tags/v1.0/extern/raw/epi50_measles_no_vaccine.csv'
+        }
+        
+        # Static data file paths (stored in repo)
+        self.static_files = {
+            'timeline': 'data/timeline.csv',
+            'mmr': 'data/MMRKCoverage.csv',
+            'mmr_map': 'data/MMRKCoverage25.csv'
+        }
+        
+        # Weekly tracking file
+        self.weekly_history_file = self.weekly_dir / 'weekly_history.json'
 
-
-def save_html_page(html_content: str, filename: str) -> bool:
-    """
-    Save HTML content to file
-    
-    Args:
-        html_content: HTML string to save
-        filename: Output filename
+    def download_data(self, url, timeout=30):
+        """
+        Download data from URL with error handling
         
-    Returns:
-        True if successful, False otherwise
-    """
-    output_dir = Path('docs')
-    output_dir.mkdir(exist_ok=True)
-    
-    try:
-        filepath = output_dir / filename
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-        logging.info(f"✓ Created {filename}")
-        return True
-    except Exception as e:
-        logging.error(f"✗ Failed to write {filename}: {str(e)}")
-        return False
-
-
-def create_timeline_chart(df: pd.DataFrame) -> Optional[go.Figure]:
-    """
-    Create historical measles cases timeline chart
-    
-    Args:
-        df: DataFrame with year and cases columns
-        
-    Returns:
-        Plotly figure or None if error
-    """
-    try:
-        # Identify columns
-        year_col = 'year' if 'year' in df.columns else df.columns[0]
-        cases_col = 'cases' if 'cases' in df.columns else df.columns[1]
-        
-        fig = go.Figure()
-        
-        fig.add_trace(go.Scatter(
-            x=df[year_col],
-            y=df[cases_col],
-            mode='lines+markers',
-            name='Measles Cases',
-            line=dict(color='#d73027', width=2),
-            marker=dict(size=4),
-            hovertemplate='<b>Year:</b> %{x}<br><b>Cases:</b> %{y:,}<extra></extra>'
-        ))
-        
-        fig.update_layout(
-            title={
-                'text': 'Historical Measles Cases in the United States',
-                'x': 0.5,
-                'xanchor': 'center',
-                'font': {'size': 20}
-            },
-            xaxis_title='Year',
-            yaxis_title='Number of Cases',
-            hovermode='x unified',
-            template='plotly_white',
-            height=600,
-            margin=dict(l=60, r=40, t=80, b=60)
-        )
-        
-        # Format y-axis with commas
-        fig.update_yaxis(tickformat=',')
-        
-        return fig
-    except Exception as e:
-        logging.error(f"Error creating timeline chart: {str(e)}")
-        return None
-
-
-def create_us_measles_chart(df: pd.DataFrame) -> Optional[go.Figure]:
-    """
-    Create current year measles cases by state bar chart
-    
-    Args:
-        df: DataFrame with state and cases columns
-        
-    Returns:
-        Plotly figure or None if error
-    """
-    try:
-        # Identify columns
-        state_col = next((col for col in df.columns if 'state' in col.lower()), 'state')
-        cases_col = next((col for col in df.columns if 'case' in col.lower()), 'cases')
-        year_col = next((col for col in df.columns if 'year' in col.lower()), None)
-        
-        # Get display year for title
-        display_year = datetime.now().year
-        if year_col and year_col in df.columns:
-            display_year = int(df[year_col].max())
-        
-        # Sort by cases descending
-        df_sorted = df.sort_values(cases_col, ascending=True)
-        
-        fig = go.Figure()
-        
-        fig.add_trace(go.Bar(
-            y=df_sorted[state_col],
-            x=df_sorted[cases_col],
-            orientation='h',
-            marker=dict(color='#4575b4'),
-            hovertemplate='<b>%{y}</b><br>Cases: %{x:,}<extra></extra>'
-        ))
-        
-        fig.update_layout(
-            title={
-                'text': f'Measles Cases by State ({display_year})',
-                'x': 0.5,
-                'xanchor': 'center',
-                'font': {'size': 20}
-            },
-            xaxis_title='Number of Cases',
-            yaxis_title='State',
-            template='plotly_white',
-            height=800,
-            margin=dict(l=120, r=40, t=80, b=60)
-        )
-        
-        fig.update_xaxis(tickformat=',')
-        
-        return fig
-    except Exception as e:
-        logging.error(f"Error creating US measles chart: {str(e)}")
-        return None
-
-
-def create_us_map_chart(df: pd.DataFrame) -> Optional[go.Figure]:
-    """
-    Create geographic heatmap of measles cases
-    
-    Args:
-        df: DataFrame with state and cases columns
-        
-    Returns:
-        Plotly figure or None if error
-    """
-    try:
-        # Identify columns
-        state_col = next((col for col in df.columns if 'state' in col.lower()), 'state')
-        cases_col = next((col for col in df.columns if 'case' in col.lower()), 'cases')
-        year_col = next((col for col in df.columns if 'year' in col.lower()), None)
-        
-        # Get display year
-        display_year = datetime.now().year
-        if year_col and year_col in df.columns:
-            display_year = int(df[year_col].max())
-        
-        fig = go.Figure(data=go.Choropleth(
-            locations=df[state_col],
-            z=df[cases_col],
-            locationmode='USA-states',
-            colorscale='Reds',
-            colorbar_title="Cases",
-            hovertemplate='<b>%{location}</b><br>Cases: %{z:,}<extra></extra>'
-        ))
-        
-        fig.update_layout(
-            title={
-                'text': f'Geographic Distribution of Measles Cases ({display_year})',
-                'x': 0.5,
-                'xanchor': 'center',
-                'font': {'size': 20}
-            },
-            geo=dict(
-                scope='usa',
-                projection=go.layout.geo.Projection(type='albers usa'),
-                showlakes=True,
-                lakecolor='rgb(255, 255, 255)'
-            ),
-            template='plotly_white',
-            height=600,
-            margin=dict(l=0, r=0, t=80, b=0)
-        )
-        
-        return fig
-    except Exception as e:
-        logging.error(f"Error creating US map chart: {str(e)}")
-        return None
-
-
-def create_mmr_coverage_chart(df: pd.DataFrame) -> Optional[go.Figure]:
-    """
-    Create MMR vaccination coverage chart
-    
-    Args:
-        df: DataFrame with state and coverage columns
-        
-    Returns:
-        Plotly figure or None if error
-    """
-    try:
-        # Identify columns
-        state_col = next((col for col in df.columns if 'state' in col.lower()), 'state')
-        coverage_col = next((col for col in df.columns if 'mmr' in col.lower() or 'coverage' in col.lower()), 'coverage')
-        year_col = next((col for col in df.columns if 'year' in col.lower() or 'school_year' in col.lower()), None)
-        
-        # Get display year
-        display_year = datetime.now().year
-        if year_col and year_col in df.columns:
-            if df[year_col].dtype == 'object':
-                # Handle "2024-2025" format
-                display_year = df[year_col].iloc[0].split('-')[0] if '-' in str(df[year_col].iloc[0]) else display_year
-            else:
-                display_year = int(df[year_col].max())
-        
-        # Sort by coverage
-        df_sorted = df.sort_values(coverage_col, ascending=True)
-        
-        # Add color coding: red if below 95% (herd immunity threshold)
-        colors = ['#d73027' if x < 95 else '#4575b4' for x in df_sorted[coverage_col]]
-        
-        fig = go.Figure()
-        
-        fig.add_trace(go.Bar(
-            y=df_sorted[state_col],
-            x=df_sorted[coverage_col],
-            orientation='h',
-            marker=dict(color=colors),
-            hovertemplate='<b>%{y}</b><br>Coverage: %{x:.1f}%<extra></extra>'
-        ))
-        
-        # Add reference line at 95% (herd immunity threshold)
-        fig.add_vline(
-            x=95,
-            line_dash="dash",
-            line_color="green",
-            annotation_text="Herd Immunity Threshold (95%)",
-            annotation_position="top"
-        )
-        
-        fig.update_layout(
-            title={
-                'text': f'MMR Vaccination Coverage by State ({display_year})',
-                'x': 0.5,
-                'xanchor': 'center',
-                'font': {'size': 20}
-            },
-            xaxis_title='Coverage (%)',
-            yaxis_title='State',
-            template='plotly_white',
-            height=800,
-            margin=dict(l=120, r=40, t=80, b=60)
-        )
-        
-        fig.update_xaxis(range=[0, 100])
-        
-        return fig
-    except Exception as e:
-        logging.error(f"Error creating MMR coverage chart: {str(e)}")
-        return None
-
-
-def create_exemptions_chart(df: pd.DataFrame) -> Optional[go.Figure]:
-    """
-    Create vaccine exemption rates chart
-    
-    Args:
-        df: DataFrame with state and exemption columns
-        
-    Returns:
-        Plotly figure or None if error
-    """
-    try:
-        # Identify columns
-        state_col = next((col for col in df.columns if 'state' in col.lower()), 'state')
-        exemption_col = next((col for col in df.columns if 'exempt' in col.lower()), None)
-        year_col = next((col for col in df.columns if 'year' in col.lower() or 'school_year' in col.lower()), None)
-        
-        if exemption_col is None or exemption_col not in df.columns:
-            logging.warning("No exemption column found in data")
-            return None
-        
-        # Get display year
-        display_year = datetime.now().year
-        if year_col and year_col in df.columns:
-            if df[year_col].dtype == 'object':
-                display_year = df[year_col].iloc[0].split('-')[0] if '-' in str(df[year_col].iloc[0]) else display_year
-            else:
-                display_year = int(df[year_col].max())
-        
-        # Remove states with missing exemption data
-        df_clean = df[df[exemption_col].notna()].copy()
-        
-        # Sort by exemption rate
-        df_sorted = df_clean.sort_values(exemption_col, ascending=True)
-        
-        fig = go.Figure()
-        
-        fig.add_trace(go.Bar(
-            y=df_sorted[state_col],
-            x=df_sorted[exemption_col],
-            orientation='h',
-            marker=dict(color='#fc8d59'),
-            hovertemplate='<b>%{y}</b><br>Exemption Rate: %{x:.1f}%<extra></extra>'
-        ))
-        
-        fig.update_layout(
-            title={
-                'text': f'Vaccine Exemption Rates by State ({display_year})',
-                'x': 0.5,
-                'xanchor': 'center',
-                'font': {'size': 20}
-            },
-            xaxis_title='Exemption Rate (%)',
-            yaxis_title='State',
-            template='plotly_white',
-            height=800,
-            margin=dict(l=120, r=40, t=80, b=60)
-        )
-        
-        return fig
-    except Exception as e:
-        logging.error(f"Error creating exemptions chart: {str(e)}")
-        return None
-
-
-def main():
-    """Main application function"""
-    logging.info("=" * 60)
-    logging.info("Starting Measles Data Visualization Generator")
-    logging.info(f"Run started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}")
-    logging.info("=" * 60)
-    
-    try:
-        # Initialize data manager
-        data_manager = DataManager()
-        
-        # Fetch all data
-        logging.info("\nFetching data from sources...")
-        data = data_manager.fetch_all_data()
-        
-        # Validate data
-        validation_results = data_manager.validate_data(data)
-        logging.info("\n" + "=" * 60)
-        logging.info("Data Validation Results:")
-        logging.info("=" * 60)
-        for dataset, result in validation_results.items():
-            status = "✓" if result['valid'] else "✗"
-            if result['valid']:
-                logging.info(f"{status} {dataset}: Valid ({result.get('rows', 0)} rows)")
-            else:
-                logging.warning(f"{status} {dataset}: Invalid - {result['error']}")
-        
-        # Check if any critical datasets failed
-        critical_datasets = ['timeline', 'measles']
-        failed_critical = [ds for ds in critical_datasets 
-                          if not validation_results.get(ds, {}).get('valid', False)]
-        
-        if failed_critical:
-            logging.error(f"Critical datasets failed validation: {failed_critical}")
-            logging.error("Cannot proceed without critical datasets.")
-            sys.exit(1)
-        
-        # Create output directory
-        output_dir = Path('docs')
-        output_dir.mkdir(exist_ok=True)
-        
-        # Track results
-        results = {'success': [], 'failed': []}
-        
-        # Generate visualizations
-        logging.info("\n" + "=" * 60)
-        logging.info("Generating Visualizations:")
-        logging.info("=" * 60)
-        
-        # 1. Timeline Chart
-        if data['timeline'] is not None:
-            fig = create_timeline_chart(data['timeline'])
-            if fig:
-                html = create_html_wrapper(fig, 'timeline.html', 'Measles Timeline')
-                if save_html_page(html, 'timeline.html'):
-                    results['success'].append('timeline.html')
-                else:
-                    results['failed'].append('timeline.html')
-            else:
-                results['failed'].append('timeline.html')
-        
-        # 2. US Measles Cases Chart
-        if data['measles'] is not None:
-            fig = create_us_measles_chart(data['measles'])
-            if fig:
-                html = create_html_wrapper(fig, 'us_measles.html', 'Measles Cases by State')
-                if save_html_page(html, 'us_measles.html'):
-                    results['success'].append('us_measles.html')
-                else:
-                    results['failed'].append('us_measles.html')
-            else:
-                results['failed'].append('us_measles.html')
-        
-        # 3. US Map Chart
-        if data['measles'] is not None:
-            fig = create_us_map_chart(data['measles'])
-            if fig:
-                html = create_html_wrapper(fig, 'us_map.html', 'Measles Cases Map')
-                if save_html_page(html, 'us_map.html'):
-                    results['success'].append('us_map.html')
-                else:
-                    results['failed'].append('us_map.html')
-            else:
-                results['failed'].append('us_map.html')
-        
-        # 4. MMR Coverage Chart
-        if data['vaccination'] is not None:
-            fig = create_mmr_coverage_chart(data['vaccination'])
-            if fig:
-                html = create_html_wrapper(fig, 'mmr_coverage.html', 'MMR Vaccination Coverage')
-                if save_html_page(html, 'mmr_coverage.html'):
-                    results['success'].append('mmr_coverage.html')
-                else:
-                    results['failed'].append('mmr_coverage.html')
-            else:
-                results['failed'].append('mmr_coverage.html')
-        
-        # 5. Exemptions Chart
-        if data['vaccination'] is not None:
-            fig = create_exemptions_chart(data['vaccination'])
-            if fig:
-                html = create_html_wrapper(fig, 'exemptions.html', 'Vaccine Exemptions')
-                if save_html_page(html, 'exemptions.html'):
-                    results['success'].append('exemptions.html')
-                else:
-                    results['failed'].append('exemptions.html')
-            else:
-                logging.warning("Exemptions chart could not be created (may be missing data)")
-        
-        # Summary
-        logging.info("\n" + "=" * 60)
-        logging.info("Generation Complete:")
-        logging.info("=" * 60)
-        logging.info(f"✓ Successful: {len(results['success'])} visualizations")
-        if results['success']:
-            for page in results['success']:
-                logging.info(f"  - {page}")
-        
-        if results['failed']:
-            logging.warning(f"✗ Failed: {len(results['failed'])} visualizations")
-            for page in results['failed']:
-                logging.warning(f"  - {page}")
-        
-        logging.info(f"\nOutput directory: {output_dir.absolute()}")
-        logging.info(f"Run completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}")
-        logging.info("=" * 60)
-        
-        # Exit with appropriate code
-        if results['failed'] and not results['success']:
-            sys.exit(1)  # Complete failure
-        elif results['failed']:
-            sys.exit(2)  # Partial failure
-        else:
-            sys.exit(0)  # Success
+        Args:
+            url (str): URL to download from
+            timeout (int): Request timeout in seconds
             
-    except Exception as e:
-        logging.error(f"Fatal error in main execution: {str(e)}", exc_info=True)
-        sys.exit(1)
+        Returns:
+            dict or pd.DataFrame: Downloaded data
+        """
+        try:
+            response = requests.get(url, timeout=timeout)
+            response.raise_for_status()
+            
+            if url.endswith('.json'):
+                return response.json()
+            else:
+                # For CSV files
+                from io import StringIO
+                return pd.read_csv(StringIO(response.text))
+                
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Failed to download data from {url}: {e}")
+            return None
 
+    def save_backup(self, data, filename):
+        """
+        Save data as backup with timestamp
+        
+        Args:
+            data: Data to save
+            filename (str): Base filename for backup
+        """
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"{filename}_{timestamp}"
+        
+        backup_path = self.backup_dir / backup_filename
+        
+        try:
+            if isinstance(data, pd.DataFrame):
+                backup_path = backup_path.with_suffix('.csv')
+                data.to_csv(backup_path, index=False)
+            else:
+                backup_path = backup_path.with_suffix('.json')
+                with open(backup_path, 'w') as f:
+                    json.dump(data, f, indent=2)
+                    
+            logging.info(f"Backup saved: {backup_path}")
+            
+        except Exception as e:
+            logging.error(f"Failed to save backup {backup_filename}: {e}")
 
-if __name__ == "__main__":
-    main()
+    def load_backup(self, filename):
+        """
+        Load most recent backup file
+        
+        Args:
+            filename (str): Base filename to look for
+            
+        Returns:
+            Data from backup file or None if not found
+        """
+        # Find most recent backup
+        backup_files = list(self.backup_dir.glob(f"{filename}_*"))
+        
+        if not backup_files:
+            logging.warning(f"No backup found for {filename}")
+            return None
+            
+        # Sort by modification time, get most recent
+        most_recent = max(backup_files, key=lambda f: f.stat().st_mtime)
+        
+        try:
+            if most_recent.suffix == '.csv':
+                data = pd.read_csv(most_recent)
+            else:
+                with open(most_recent, 'r') as f:
+                    data = json.load(f)
+                    
+            logging.info(f"Loaded backup: {most_recent}")
+            return data
+            
+        except Exception as e:
+            logging.error(f"Failed to load backup {most_recent}: {e}")
+            return None
+
+    def load_static_data(self, filename):
+        """
+        Load static data file from repository
+        
+        Args:
+            filename (str): Path to static data file
+            
+        Returns:
+            pd.DataFrame: Loaded data
+        """
+        try:
+            filepath = Path(filename)
+            if filepath.suffix == '.csv':
+                return pd.read_csv(filepath)
+            else:
+                with open(filepath, 'r') as f:
+                    return json.load(f)
+                    
+        except Exception as e:
+            logging.error(f"Failed to load static file {filename}: {e}")
+            return None
+
+    def standardize_year_columns(self, df, year_col):
+        """
+        Standardize year columns to ensure consistent data types
+        
+        Args:
+            df (pd.DataFrame): DataFrame to process
+            year_col (str): Name of year column
+            
+        Returns:
+            pd.DataFrame: DataFrame with standardized year column
+        """
+        if year_col in df.columns:
+            # Convert to numeric, handling any string representations
+            df[year_col] = pd.to_numeric(df[year_col], errors='coerce')
+            # Convert to integer where possible
+            df[year_col] = df[year_col].astype('Int64')  # Nullable integer
+        return df
+
+    def load_weekly_history(self):
+        """Load weekly tracking history"""
+        if self.weekly_history_file.exists():
+            try:
+                with open(self.weekly_history_file, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                logging.error(f"Failed to load weekly history: {e}")
+                return []
+        return []
+
+    def save_weekly_snapshot(self, state_data):
+        """
+        Save current week's state case data to history
+        
+        Args:
+            state_data: DataFrame with State and Cases columns
+        """
+        try:
+            history = self.load_weekly_history()
+            
+            snapshot = {
+                'date': datetime.now().strftime('%Y-%m-%d'),
+                'week': datetime.now().strftime('%Y-W%U'),
+                'data': state_data[['State', 'Cases']].to_dict('records')
+            }
+            
+            history.append(snapshot)
+            
+            # Keep only last 8 weeks of history
+            if len(history) > 8:
+                history = history[-8:]
+            
+            with open(self.weekly_history_file, 'w') as f:
+                json.dump(history, f, indent=2)
+            
+            logging.info(f"Saved weekly snapshot for {snapshot['week']}")
+            
+        except Exception as e:
+            logging.error(f"Failed to save weekly snapshot: {e}")
+
+    def get_weekly_comparison_data(self):
+        """
+        Get current and previous week data for comparison
+        
+        Returns:
+            dict: Dictionary with 'current' and 'previous' DataFrames
+        """
+        history = self.load_weekly_history()
+        
+        result = {
+            'current': pd.DataFrame(),
+            'previous': pd.DataFrame()
+        }
+        
+        if len(history) >= 1:
+            result['current'] = pd.DataFrame(history[-1]['data'])
+        
+        if len(history) >= 2:
+            result['previous'] = pd.DataFrame(history[-2]['data'])
+        
+        return result
+
+    def fetch_all_data(self):
+        """
+        Fetch all required data sources with fallback to backups
+        
+        Returns:
+            dict: Dictionary containing all loaded datasets
+        """
+        data = {}
+        
+        # Load static files
+        for key, filepath in self.static_files.items():
+            static_data = self.load_static_data(filepath)
+            if static_data is not None:
+                # Standardize year columns if they exist
+                if key == 'mmr' and 'year' in static_data.columns:
+                    static_data = self.standardize_year_columns(static_data, 'year')
+                data[key] = static_data
+                logging.info(f"Loaded static data: {key}")
+            else:
+                logging.error(f"Failed to load static data: {key}")
+                return None
+
+        # Download dynamic data with backup fallback
+        for key, url in self.data_sources.items():
+            downloaded_data = self.download_data(url)
+            
+            if downloaded_data is not None:
+                # Convert to DataFrame - handle both dict and list formats from JSON APIs
+                if isinstance(downloaded_data, (dict, list)):
+                    downloaded_data = pd.DataFrame(downloaded_data)
+                
+                # Standardize year columns
+                if 'year' in downloaded_data.columns:
+                    downloaded_data = self.standardize_year_columns(downloaded_data, 'year')
+                    
+                data[key] = downloaded_data
+                self.save_backup(downloaded_data, key)
+                logging.info(f"Downloaded fresh data: {key}")
+                
+            else:
+                # Try to load from backup
+                backup_data = self.load_backup(key)
+                if backup_data is not None:
+                    if isinstance(backup_data, (dict, list)):
+                        backup_data = pd.DataFrame(backup_data)
+                    
+                    # Standardize year columns in backup data too
+                    if isinstance(backup_data, pd.DataFrame) and 'year' in backup_data.columns:
+                        backup_data = self.standardize_year_columns(backup_data, 'year')
+                        
+                    data[key] = backup_data
+                    logging.warning(f"Using backup data for: {key}")
+                else:
+                    logging.error(f"No data available for: {key}")
+                    return None
+
+        # Process and merge data
+        processed_data = self.process_data(data)
+        return processed_data
+
+    def process_data(self, raw_data):
+        """
+        Process and clean raw data with proper data type handling
+        
+        Args:
+            raw_data (dict): Dictionary of raw datasets
+            
+        Returns:
+            dict: Dictionary of processed datasets
+        """
+        processed = {}
+        
+        try:
+            # Timeline data - already clean, ensure Year is numeric
+            timeline = raw_data['timeline'].copy()
+            if 'Year' in timeline.columns:
+                timeline['Year'] = pd.to_numeric(timeline['Year'], errors='coerce')
+            processed['timeline'] = timeline
+            logging.info("Processed timeline data successfully")
+            
+            # US Measles data - ensure year is numeric
+            usmeasles = raw_data['usmeasles'].copy()
+            if 'year' in usmeasles.columns:
+                usmeasles = self.standardize_year_columns(usmeasles, 'year')
+            processed['usmeasles'] = usmeasles
+            logging.info("Processed US measles data successfully")
+            
+            # MMR Coverage data - ensure year is numeric
+            mmr = raw_data['mmr'].copy()
+            if 'year' in mmr.columns:
+                mmr = self.standardize_year_columns(mmr, 'year')
+            processed['mmr'] = mmr
+            logging.info("Processed MMR data successfully")
+            
+            # Process map data with proper data type handling
+            logging.info("Processing map data...")
+            mmr_map = raw_data['mmr_map'].rename(columns={'Geography': 'geography'})
+            usmap_cases = raw_data['usmap_cases'].copy()
+            
+            # Ensure consistent data types for merge
+            if 'year' in mmr_map.columns:
+                mmr_map = self.standardize_year_columns(mmr_map, 'year')
+            if 'year' in usmap_cases.columns:
+                usmap_cases = self.standardize_year_columns(usmap_cases, 'year')
+            
+            # Merge map data
+            usmap = usmap_cases.merge(mmr_map, on='geography', how='left')
+            
+            # Filter out NYC and DC as they are not states
+            usmap = usmap[~usmap['geography'].isin(['New York City', 'District of Columbia'])].copy()
+            
+            # Handle year filtering - check both possible year columns
+            year_col = 'year_x' if 'year_x' in usmap.columns else 'year'
+            if year_col in usmap.columns:
+                # Convert year column to numeric
+                usmap[year_col] = pd.to_numeric(usmap[year_col], errors='coerce')
+                available_years = usmap[year_col].dropna().unique()
+                logging.info(f"Available years in merged data: {sorted(available_years)}")
+                
+                # Filter to 2025 outbreak data 
+                usmap_2025 = usmap[usmap[year_col] >= 2025 ].copy()
+                logging.info(f"After filtering to 2025: {len(usmap_2025)} rows")
+                
+                #
+                if len(usmap_2025) == 0:
+                    logging.warning("No 2025 data found. Checking for most recent year instead...")
+                    if len(usmap) > 0:
+                        most_recent_year = usmap[year_col].max()
+                        logging.info(f"Most recent year available: {most_recent_year}")
+                        usmap_2025 = usmap[usmap[year_col] == most_recent_year].copy()
+                        logging.info(f"Using {most_recent_year} data: {len(usmap_2025)} rows")
+                
+                usmap = usmap_2025
+            
+            # Convert Estimate (%) to numeric and handle any string values
+            if 'Estimate (%)' in usmap.columns:
+                usmap['Estimate (%)'] = pd.to_numeric(usmap['Estimate (%)'], errors='coerce')
+            
+            # Ensure cases column is numeric for calculations
+            cases_col = next((c for c in ['cases_calendar_year', 'cases', 'Cases'] if c in usmap.columns), None)
+            if cases_col and cases_col in usmap.columns:
+                usmap[cases_col] = pd.to_numeric(usmap[cases_col], errors='coerce')
+            
+            processed['usmap'] = usmap
+            logging.info("Processed map data successfully")
+            
+            # Process state data for weekly tracking
+            logging.info("Processing weekly state data...")
+            state_weekly = usmap_cases.copy()
+            
+            # Rename columns for consistency
+            if 'geography' in state_weekly.columns:
+                state_weekly.rename(columns={'geography': 'State'}, inplace=True)
+            
+            cases_col = next((c for c in ['cases_calendar_year', 'cases', 'Cases'] if c in state_weekly.columns), None)
+            if cases_col:
+                state_weekly.rename(columns={cases_col: 'Cases'}, inplace=True)
+                state_weekly['Cases'] = pd.to_numeric(state_weekly['Cases'], errors='coerce').fillna(0).astype(int)
+            
+            # Get most recent year's data for weekly tracking
+            if 'year' in state_weekly.columns:
+                state_weekly['year'] = pd.to_numeric(state_weekly['year'], errors='coerce')
+                max_year = state_weekly['year'].max()
+                state_weekly = state_weekly[state_weekly['year'] == max_year].copy()
+            
+            # Save weekly snapshot
+            if 'State' in state_weekly.columns and 'Cases' in state_weekly.columns:
+                self.save_weekly_snapshot(state_weekly)
+            
+            processed['state_weekly'] = state_weekly
+            logging.info("Processed weekly state data successfully")
+            
+            # Process vaccine impact data
+            logging.info("Processing vaccine impact data...")
+            vax_df = raw_data['vaccine_with'].copy()
+            no_vax_df = raw_data['vaccine_without'].copy()
+            
+            # Ensure year columns are consistent
+            if 'year' in vax_df.columns:
+                vax_df = self.standardize_year_columns(vax_df, 'year')
+            if 'year' in no_vax_df.columns:
+                no_vax_df = self.standardize_year_columns(no_vax_df, 'year')
+            
+            # Filter for USA data
+            vax_usa = vax_df[vax_df['iso'] == 'USA'].copy()
+            no_vax_usa = no_vax_df[no_vax_df['iso'] == 'USA'].copy()
+            
+            # Merge vaccine data
+            merged_vaccine = pd.merge(no_vax_usa, vax_usa, on='year', suffixes=('_no_vaccine', '_vaccine'))
+            
+            # Calculate lives saved - ensure numeric columns
+            numeric_cols = ['mean_deaths_no_vaccine', 'mean_deaths_vaccine', 
+                           'ub_deaths_no_vaccine', 'lb_deaths_vaccine',
+                           'lb_deaths_no_vaccine', 'ub_deaths_vaccine']
+            
+            for col in numeric_cols:
+                if col in merged_vaccine.columns:
+                    merged_vaccine[col] = pd.to_numeric(merged_vaccine[col], errors='coerce')
+            
+            merged_vaccine['lives_saved'] = (merged_vaccine['mean_deaths_no_vaccine'] - 
+                                           merged_vaccine['mean_deaths_vaccine'])
+            merged_vaccine['lives_saved_ub'] = (merged_vaccine['ub_deaths_no_vaccine'] - 
+                                              merged_vaccine['lb_deaths_vaccine'])
+            merged_vaccine['lives_saved_lb'] = (merged_vaccine['lb_deaths_no_vaccine'] - 
+                                              merged_vaccine['ub_deaths_vaccine'])
+            merged_vaccine = merged_vaccine.sort_values('year')
+            
+            processed['vaccine_impact'] = merged_vaccine
+            logging.info("Processed vaccine impact data successfully")
+            
+            # Add weekly comparison data
+            processed['weekly_comparison'] = self.get_weekly_comparison_data()
+            logging.info("Loaded weekly comparison data")
+            
+            return processed
+            
+        except Exception as e:
+            logging.error(f"Error in process_data: {e}")
+            logging.error(f"Available keys in raw_data: {list(raw_data.keys())}")
+            for key, value in raw_data.items():
+                logging.error(f"{key}: type={type(value)}, shape={getattr(value, 'shape', 'No shape')}")
+            return None
+
+    def validate_data(self, data):
+        """
+        Validate data quality and completeness
+        
+        Args:
+            data (dict): Dictionary of datasets to validate
+            
+        Returns:
+            dict: Validation results
+        """
+        validation_results = {}
+        
+        required_datasets = ['timeline', 'usmeasles', 'mmr', 'usmap', 'vaccine_impact', 'weekly_comparison']
+        
+        for dataset_name in required_datasets:
+            if dataset_name not in data:
+                validation_results[dataset_name] = {'valid': False, 'error': 'Dataset missing'}
+                continue
+            
+            if dataset_name == 'weekly_comparison':
+                # Special validation for weekly comparison dict
+                weekly_data = data[dataset_name]
+                if 'current' not in weekly_data or weekly_data['current'].empty:
+                    validation_results[dataset_name] = {'valid': False, 'error': 'No current week data'}
+                else:
+                    validation_results[dataset_name] = {'valid': True, 'rows': len(weekly_data['current'])}
+                continue
+                
+            df = data[dataset_name]
+            
+            if df.empty:
+                validation_results[dataset_name] = {'valid': False, 'error': 'Dataset is empty'}
+                continue
+                
+            # Dataset-specific validation
+            if dataset_name == 'timeline':
+                required_cols = ['Year', 'Cases']
+                missing_cols = [col for col in required_cols if col not in df.columns]
+                if missing_cols:
+                    validation_results[dataset_name] = {
+                        'valid': False, 
+                        'error': f'Missing columns: {missing_cols}'
+                    }
+                else:
+                    validation_results[dataset_name] = {'valid': True, 'rows': len(df)}
+                    
+            elif dataset_name == 'usmeasles':
+                required_cols = ['year', 'cases']
+                missing_cols = [col for col in required_cols if col not in df.columns]
+                if missing_cols:
+                    validation_results[dataset_name] = {
+                        'valid': False, 
+                        'error': f'Missing columns: {missing_cols}'
+                    }
+                else:
+                    validation_results[dataset_name] = {'valid': True, 'rows': len(df)}
+                    
+            # Add more specific validation as needed
+            else:
+                validation_results[dataset_name] = {'valid': True, 'rows': len(df)}
+                
+        return validation_results
