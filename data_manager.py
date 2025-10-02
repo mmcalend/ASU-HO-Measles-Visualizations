@@ -10,19 +10,6 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Optional, Tuple
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/measles_viz.log'),
-        logging.StreamHandler()
-    ]
-)
-
-# Create logs directory if it doesn't exist
-Path('logs').mkdir(exist_ok=True)
-
 
 class DataManager:
     """Manages data fetching and processing for measles visualizations"""
