@@ -38,7 +38,6 @@ def create_html_wrapper(fig: go.Figure, filename: str, title: str) -> str:
         HTML content as string
     """
     try:
-        # Convert figure to HTML div
         plot_html = fig.to_html(
             include_plotlyjs='cdn',
             div_id='chart',
