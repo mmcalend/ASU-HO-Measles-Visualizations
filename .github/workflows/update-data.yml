@@ -13,7 +13,7 @@ on:
         default: 'false'
         type: boolean
 
-  # Run on push to main branch for testing.
+  # Run on push to main branch for testing
   push:
     branches: [ main ]
 
@@ -48,11 +48,64 @@ jobs:
         mkdir -p data/backups
         mkdir -p docs
 
+    - name: Backup existing visualizations
+      run: |
+        # Create a backup of current visualizations before attempting update
+        if [ -d "docs" ] && [ "$(ls -A docs)" ]; then
+          mkdir -p data/viz_backups
+          timestamp=$(date +%Y%m%d_%H%M%S)
+          cp -r docs "data/viz_backups/docs_${timestamp}"
+          echo "Backed up existing visualizations to data/viz_backups/docs_${timestamp}"
+          
+          # Keep only last 5 visualization backups
+          cd data/viz_backups
+          ls -t | tail -n +6 | xargs -r rm -rf
+          cd ../..
+        else
+          echo "No existing visualizations to backup"
+        fi
+
     - name: Run data update and visualization generation
+      id: update
+      continue-on-error: true  # Don't fail workflow if update fails
       run: |
         python main.py
       env:
         FORCE_REFRESH: ${{ github.event.inputs.force_refresh || 'false' }}
+
+    - name: Check update status
+      id: check_status
+      run: |
+        if [ ${{ steps.update.outcome }} == 'success' ]; then
+          echo "update_successful=true" >> $GITHUB_OUTPUT
+          echo "Update completed successfully"
+        else
+          echo "update_successful=false" >> $GITHUB_OUTPUT
+          echo "Update failed, checking for existing visualizations..."
+          
+          # Check if we have visualizations to use
+          if [ -d "docs" ] && [ "$(ls -A docs/*.html 2>/dev/null)" ]; then
+            echo "Existing visualizations found, will use those"
+            echo "has_fallback=true" >> $GITHUB_OUTPUT
+          else
+            echo "No existing visualizations found"
+            echo "has_fallback=false" >> $GITHUB_OUTPUT
+          fi
+        fi
+
+    - name: Restore from backup if update failed
+      if: steps.check_status.outputs.update_successful == 'false' && steps.check_status.outputs.has_fallback == 'false'
+      run: |
+        # Try to restore from most recent visualization backup
+        if [ -d "data/viz_backups" ] && [ "$(ls -A data/viz_backups)" ]; then
+          latest_backup=$(ls -t data/viz_backups | head -n1)
+          echo "Restoring from backup: ${latest_backup}"
+          cp -r "data/viz_backups/${latest_backup}"/* docs/
+          echo "Restored visualizations from backup"
+        else
+          echo "No backup available to restore"
+          exit 1
+        fi
 
     - name: Check for changes
       id: verify-changed-files
@@ -72,29 +125,43 @@ jobs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add .
-        git commit -m "Auto-update measles visualizations - $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
+        
+        # Add status message to commit
+        if [ "${{ steps.check_status.outputs.update_successful }}" == "true" ]; then
+          git commit -m "Auto-update measles visualizations - $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
+        else
+          git commit -m "Maintain visualizations (update failed, using existing) - $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
+        fi
+        
         git push
 
     - name: Setup Pages
-      if: steps.verify-changed-files.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+      if: always()  # Always deploy, even if update failed but we have visualizations
       uses: actions/configure-pages@v4
+      
     - name: Upload to GitHub Pages
-      if: steps.verify-changed-files.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+      if: always()  # Always upload available visualizations
       uses: actions/upload-pages-artifact@v4
       with:
         path: ./docs
 
     - name: Deploy to GitHub Pages
-      if: steps.verify-changed-files.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+      if: always()  # Always deploy available content
       id: deployment
       uses: actions/deploy-pages@v4
 
     - name: Log completion
+      if: always()
       run: |
         echo "Workflow completed at $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
+        echo "Update successful: ${{ steps.check_status.outputs.update_successful }}"
         echo "Site URL: ${{ steps.deployment.outputs.page_url }}"
+        
+        if [ "${{ steps.check_status.outputs.update_successful }}" == "false" ]; then
+          echo " Warning: Update failed but visualizations are still available"
+        fi
 
-  # Job to clean up old backups (keep last 30 days)
+  # Job to clean up old backups (keep last 30 days of data backups, last 7 days of viz backups)
   cleanup-backups:
     runs-on: ubuntu-latest
     needs: update-visualizations
@@ -106,20 +173,41 @@ jobs:
 
     - name: Clean up old backups
       run: |
-        # Remove backup files older than 30 days
-        find data/backups -name "*.csv" -mtime +30 -delete
-        find data/backups -name "*.json" -mtime +30 -delete
+        # Remove DATA backup files older than 30 days (but keep at least 5 most recent)
+        if [ -d "data/backups" ]; then
+          backup_count=$(find data/backups -type f | wc -l)
+          echo "Current data backup count: $backup_count"
+          
+          # Only delete old files if we have more than 5 backups
+          if [ $backup_count -gt 5 ]; then
+            find data/backups -name "*.csv" -mtime +30 -delete
+            find data/backups -name "*.json" -mtime +30 -delete
+          fi
+          
+          remaining_count=$(find data/backups -type f | wc -l)
+          echo "Remaining data backup files: $remaining_count"
+        fi
         
-        # Count remaining files
-        backup_count=$(find data/backups -type f | wc -l)
-        echo "Remaining backup files: $backup_count"
+        # Remove VISUALIZATION backup folders older than 7 days (but keep at least 3 most recent)
+        if [ -d "data/viz_backups" ]; then
+          viz_backup_count=$(find data/viz_backups -maxdepth 1 -type d | wc -l)
+          echo "Current viz backup count: $viz_backup_count"
+          
+          # Only delete old folders if we have more than 3 backups
+          if [ $viz_backup_count -gt 3 ]; then
+            find data/viz_backups -maxdepth 1 -type d -mtime +7 -exec rm -rf {} +
+          fi
+          
+          remaining_viz_count=$(find data/viz_backups -maxdepth 1 -type d | wc -l)
+          echo "Remaining viz backup folders: $remaining_viz_count"
+        fi
 
     - name: Commit backup cleanup
       run: |
         if [ -n "$(git status --porcelain)" ]; then
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add data/backups
+          git add data/backups data/viz_backups
           git commit -m "Cleanup old backup files - $(date -u +%Y-%m-%d)"
           git push
         fi
@@ -128,7 +216,7 @@ jobs:
   health-check:
     runs-on: ubuntu-latest
     needs: update-visualizations
-    if: success()
+    if: always()  # Run even if update failed
     
     steps:
     - name: Wait for deployment
@@ -145,27 +233,35 @@ jobs:
         
         # Check if the main page loads
         if curl -f -s -I "$SITE_URL" > /dev/null; then
-          echo "âœ“ Site is accessible"
+          echo "✓ Site is accessible"
         else
-          echo "âœ— Site health check failed"
+          echo "✗ Site health check failed"
           exit 1
         fi
         
         # Check if key pages load
+        all_passed=true
         for page in timeline.html recent_trends.html state_map.html; do
           if curl -f -s -I "$SITE_URL/$page" > /dev/null; then
-            echo "âœ“ $page is accessible"
+            echo "✓ $page is accessible"
           else
-            echo "âœ— $page health check failed"
+            echo "✗ $page health check failed"
+            all_passed=false
           fi
         done
         
+        if [ "$all_passed" = false ]; then
+          echo "Some health checks failed"
+          exit 1
+        fi
+        
+        echo "All health checks passed"
         echo "Site URL: $SITE_URL"
 
-  # Send notification on failure (optional - requires setup)
+  # Send notification on failure
   notify-on-failure:
     runs-on: ubuntu-latest
-    needs: [update-visualizations, cleanup-backups, health-check]
+    needs: [update-visualizations, health-check]
     if: failure()
     
     steps:
