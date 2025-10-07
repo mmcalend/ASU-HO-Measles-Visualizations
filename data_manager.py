@@ -257,7 +257,24 @@ class DataManager:
             else:
                 logging.error(f"Failed to load static data: {key}")
                 return None
-
+        # Filter to 2025 outbreak data 
+            usmap_2025 = usmap[usmap[year_col] >= 2025 ].copy()
+            logging.info(f"After filtering to 2025: {len(usmap_2025)} rows")
+            
+            if len(usmap_2025) == 0:
+                logging.warning("No 2025 data found. Checking for most recent year instead...")
+                if len(usmap) > 0:
+                    most_recent_year = usmap[year_col].max()
+                    logging.info(f"Most recent year available: {most_recent_year}")
+                    usmap_2025 = usmap[usmap[year_col] == most_recent_year].copy()
+                    logging.info(f"Using {most_recent_year} data: {len(usmap_2025)} rows")
+            
+            # CRITICAL: Final safety check - return None to trigger fallback mechanism
+            if len(usmap_2025) == 0:
+                logging.error("No valid map data available after filtering!")
+                return None
+            
+            usmap = usmap_2025
         # Download dynamic data with backup fallback
         for key, url in self.data_sources.items():
             downloaded_data = self.download_data(url)
