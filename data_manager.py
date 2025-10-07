@@ -419,8 +419,12 @@ class DataManager:
                 state_weekly = state_weekly[state_weekly['year'] == max_year].copy()
             
             # Save weekly snapshot
-            if 'State' in state_weekly.columns and 'Cases' in state_weekly.columns:
-                self.save_weekly_snapshot(state_weekly)
+            try:
+                if 'State' in state_weekly.columns and 'Cases' in state_weekly.columns:
+                    self.save_weekly_snapshot(state_weekly)
+            except Exception as e:
+                logging.error(f"Failed to save weekly snapshot (non-critical): {e}")
+                # Don't fail the entire process for this
             
             processed['state_weekly'] = state_weekly
             logging.info("Processed weekly state data successfully")
