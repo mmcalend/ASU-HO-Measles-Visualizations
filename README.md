@@ -70,39 +70,6 @@ The system is designed to **never go down** even if data sources fail:
 - If generation fails entirely → Restores from visualization backup
 - Workflow always succeeds → Site stays operational
 
-## Data Structure
-
-### Directory Layout
-
-```
-├── .github/
-│   └── workflows/
-│       └── update-data.yml          # GitHub Actions automation
-├── data/
-│   ├── backups/                     # Timestamped data backups
-│   │   ├── usmeasles_20250102_060015.csv
-│   │   ├── usmap_cases_20250102_060015.json
-│   │   └── ...
-│   ├── viz_backups/                 # Visualization snapshots
-│   │   ├── docs_20250102_060015/
-│   │   └── ...
-│   ├── weekly_tracking/             # Weekly state case tracking
-│   │   └── weekly_history.json
-│   ├── timeline.csv                 # Static: Historical timeline
-│   ├── MMRKCoverage.csv            # Static: Historical MMR coverage
-│   └── MMRKCoverage25.csv          # Static: Current school year MMR
-├── docs/                            # Generated visualizations (deployed)
-│   ├── timeline.html
-│   ├── recent_trends.html
-│   ├── state_map.html
-│   └── ...
-├── chart_generators.py              # Chart creation functions
-├── table_generators.py              # Table creation functions
-├── chart_styles.py                  # Consistent styling/colors
-├── data_manager.py                  # Data fetching and backup logic
-├── main.py                          # Main orchestration script
-└── requirements.txt                 # Python dependencies
-```
 
 ### Data Flow
 
@@ -191,15 +158,6 @@ You can manually trigger the update workflow from GitHub:
 - **GitHub Actions** - Automation
 - **GitHub Pages** - Hosting
 
-## License
-
-This project uses public health data from CDC and WHO. Visualizations are provided for public health education and awareness.
-
-## Contact
-
-For questions or issues, please open an issue in this repository.
-
----
 
 **Last Updated:** October 2025  
 **Maintained By:** ASU Health Observatory
