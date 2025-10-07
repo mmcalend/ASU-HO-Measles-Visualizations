@@ -98,13 +98,13 @@ def check_existing_visualizations():
 
 def generate_visualizations(data):
     """
-    Generate all visualizations from data
+    Generate all visualizations from data with per-chart fallback
     
     Args:
         data: Dictionary containing all datasets
         
     Returns:
-        dict: Status of each visualization (True/False for success)
+        dict: Status of each visualization (True/False/'fallback' for success)
     """
     status = {}
     
@@ -112,113 +112,102 @@ def generate_visualizations(data):
     output_dir = Path('docs')
     output_dir.mkdir(exist_ok=True)
     
+    def safe_generate_chart(chart_name, chart_func, *args):
+        """Safely generate a chart with fallback to existing file"""
+        try:
+            fig = chart_func(*args)
+            temp_file = output_dir / f"{chart_name}_temp.html"
+            final_file = output_dir / f"{chart_name}.html"
+            
+            # Generate to temp location first
+            create_html_page(fig, f"{chart_name}_temp.html")
+            
+            # Only replace existing file if generation succeeded
+            temp_file.rename(final_file)
+            logging.info(f"Successfully generated {chart_name}.html")
+            return True
+        except Exception as e:
+            logging.error(f"Failed to create {chart_name}: {e}")
+            # Check if old version exists
+            if (output_dir / f"{chart_name}.html").exists():
+                logging.warning(f"Keeping existing {chart_name}.html")
+                return 'fallback'
+            else:
+                return False
+    
     # Generate charts
     logging.info("Generating charts...")
     
-    # Southwest Weekly Comparison Table
-    try:
-        weekly_fig = create_southwest_weekly_comparison(data['weekly_comparison'])
-        create_html_page(weekly_fig, "southwest_weekly.html")
-        status['southwest_weekly'] = True
-    except Exception as e:
-        logging.error(f"Failed to create weekly comparison table: {e}")
-        status['southwest_weekly'] = False
+    status['southwest_weekly'] = safe_generate_chart(
+        'southwest_weekly', 
+        create_southwest_weekly_comparison, 
+        data['weekly_comparison']
+    )
     
-    # Timeline chart
-    try:
-        timeline_fig = create_measles_timeline(data['timeline'])
-        create_html_page(timeline_fig, "timeline.html")
-        status['timeline'] = True
-    except Exception as e:
-        logging.error(f"Failed to create timeline chart: {e}")
-        status['timeline'] = False
+    status['timeline'] = safe_generate_chart(
+        'timeline', 
+        create_measles_timeline, 
+        data['timeline']
+    )
     
-    # Recent trends chart
-    try:
-        recent_fig = create_recent_trends(data['usmeasles'], data.get('mmr', pd.DataFrame()))
-        create_html_page(recent_fig, "recent_trends.html")
-        status['recent_trends'] = True
-    except Exception as e:
-        logging.error(f"Failed to create recent trends chart: {e}")
-        status['recent_trends'] = False
+    status['recent_trends'] = safe_generate_chart(
+        'recent_trends', 
+        create_recent_trends, 
+        data['usmeasles'], 
+        data.get('mmr', pd.DataFrame())
+    )
     
-    # R0 comparison chart
-    try:
-        rnaught_fig = create_rnaught_comparison()
-        create_html_page(rnaught_fig, "rnaught_comparison.html")
-        status['rnaught_comparison'] = True
-    except Exception as e:
-        logging.error(f"Failed to create R0 comparison chart: {e}")
-        status['rnaught_comparison'] = False
+    status['rnaught_comparison'] = safe_generate_chart(
+        'rnaught_comparison', 
+        create_rnaught_comparison
+    )
     
-    # State map
-    try:
-        map_fig = create_bivariate_choropleth(data['usmap'])
-        create_html_page(map_fig, "state_map.html")
-        status['state_map'] = True
-    except Exception as e:
-        logging.error(f"Failed to create state map: {e}")
-        status['state_map'] = False
+    status['state_map'] = safe_generate_chart(
+        'state_map', 
+        create_bivariate_choropleth, 
+        data['usmap']
+    )
     
-    # Lives saved chart
-    try:
-        lives_fig = create_lives_saved_chart(data.get('vaccine_impact', pd.DataFrame()))
-        create_html_page(lives_fig, "lives_saved.html")
-        status['lives_saved'] = True
-    except Exception as e:
-        logging.error(f"Failed to create lives saved chart: {e}")
-        status['lives_saved'] = False
+    status['lives_saved'] = safe_generate_chart(
+        'lives_saved', 
+        create_lives_saved_chart, 
+        data.get('vaccine_impact', pd.DataFrame())
+    )
     
     # Generate tables
     logging.info("Generating tables...")
     
-    # Timeline table
-    try:
-        timeline_table = create_timeline_table(data['timeline'])
-        create_html_page(timeline_table, "timeline_table.html")
-        status['timeline_table'] = True
-    except Exception as e:
-        logging.error(f"Failed to create timeline table: {e}")
-        status['timeline_table'] = False
+    status['timeline_table'] = safe_generate_chart(
+        'timeline_table', 
+        create_timeline_table, 
+        data['timeline']
+    )
     
-    # Recent trends table
-    try:
-        recent_table = create_recent_trends_table(data['usmeasles'], data.get('mmr', pd.DataFrame()))
-        create_html_page(recent_table, "recent_trends_table.html")
-        status['recent_trends_table'] = True
-    except Exception as e:
-        logging.error(f"Failed to create recent trends table: {e}")
-        status['recent_trends_table'] = False
+    status['recent_trends_table'] = safe_generate_chart(
+        'recent_trends_table', 
+        create_recent_trends_table, 
+        data['usmeasles'], 
+        data.get('mmr', pd.DataFrame())
+    )
     
-    # R0 table
-    try:
-        rnaught_table = create_rnaught_table()
-        create_html_page(rnaught_table, "rnaught_table.html")
-        status['rnaught_table'] = True
-    except Exception as e:
-        logging.error(f"Failed to create R0 table: {e}")
-        status['rnaught_table'] = False
+    status['rnaught_table'] = safe_generate_chart(
+        'rnaught_table', 
+        create_rnaught_table
+    )
     
-    # State map table
-    try:
-        map_table = create_state_map_table(data['usmap'])
-        create_html_page(map_table, "state_map_table.html")
-        status['state_map_table'] = True
-    except Exception as e:
-        logging.error(f"Failed to create state map table: {e}")
-        status['state_map_table'] = False
+    status['state_map_table'] = safe_generate_chart(
+        'state_map_table', 
+        create_state_map_table, 
+        data['usmap']
+    )
     
-    # Lives saved table
-    try:
-        lives_table = create_lives_saved_table(data.get('vaccine_impact', pd.DataFrame()))
-        create_html_page(lives_table, "lives_saved_table.html")
-        status['lives_saved_table'] = True
-    except Exception as e:
-        logging.error(f"Failed to create lives saved table: {e}")
-        status['lives_saved_table'] = False
+    status['lives_saved_table'] = safe_generate_chart(
+        'lives_saved_table', 
+        create_lives_saved_table, 
+        data.get('vaccine_impact', pd.DataFrame())
+    )
     
     return status
-
 def main():
     """Main application function with improved fallback handling"""
     logging.info("Starting Measles Data Visualization Generator")
