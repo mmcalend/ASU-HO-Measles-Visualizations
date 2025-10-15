@@ -194,13 +194,29 @@ class DataManager:
         try:
             history = self.load_weekly_history()
             
+            current_week = datetime.now().strftime('%Y-W%U')
+            
+            # Check if we already have data for this week
+            existing_week_index = None
+            for i, snapshot in enumerate(history):
+                if snapshot.get('week') == current_week:
+                    existing_week_index = i
+                    break
+            
             snapshot = {
                 'date': datetime.now().strftime('%Y-%m-%d'),
-                'week': datetime.now().strftime('%Y-W%U'),
+                'week': current_week,
                 'data': state_data[['State', 'Cases']].to_dict('records')
             }
             
-            history.append(snapshot)
+            if existing_week_index is not None:
+                # Update existing week's data
+                history[existing_week_index] = snapshot
+                logging.info(f"Updated weekly snapshot for {current_week}")
+            else:
+                # Add new week's data
+                history.append(snapshot)
+                logging.info(f"Added new weekly snapshot for {current_week}")
             
             # Keep only last 8 weeks of history
             if len(history) > 8:
@@ -208,8 +224,6 @@ class DataManager:
             
             with open(self.weekly_history_file, 'w') as f:
                 json.dump(history, f, indent=2)
-            
-            logging.info(f"Saved weekly snapshot for {snapshot['week']}")
             
         except Exception as e:
             logging.error(f"Failed to save weekly snapshot: {e}")
@@ -228,11 +242,19 @@ class DataManager:
             'previous': pd.DataFrame()
         }
         
+        if len(history) == 0:
+            logging.warning("No weekly history found - this may be first run")
+            return result
+        
         if len(history) >= 1:
             result['current'] = pd.DataFrame(history[-1]['data'])
+            logging.info(f"Loaded current week data from {history[-1]['week']} ({len(history[-1]['data'])} states)")
         
         if len(history) >= 2:
             result['previous'] = pd.DataFrame(history[-2]['data'])
+            logging.info(f"Loaded previous week data from {history[-2]['week']} ({len(history[-2]['data'])} states)")
+        else:
+            logging.warning("No previous week data available yet")
         
         return result
 
@@ -394,27 +416,23 @@ class DataManager:
                 state_weekly.rename(columns={cases_col: 'Cases'}, inplace=True)
                 state_weekly['Cases'] = pd.to_numeric(state_weekly['Cases'], errors='coerce').fillna(0).astype(int)
             
-            # For weekly tracking, we want the current data (no year filtering needed)
-            # The CDC map data already contains the most current case counts
-            if 'year' in state_weekly.columns:
-                # Just ensure year is numeric but don't filter
-                state_weekly['year'] = pd.to_numeric(state_weekly['year'], errors='coerce')
-                logging.info(f"State weekly data years: {state_weekly['year'].unique()}")
-            
-            # Remove any duplicate states (keep most recent if duplicates exist)
+            # Get most recent data (don't filter by year - the CDC endpoint has current data)
+            # If there are duplicates, keep the first occurrence
             if 'State' in state_weekly.columns:
-                state_weekly = state_weekly.sort_values('year', ascending=False).drop_duplicates(subset=['State'], keep='first')
-                        
-            # Save weekly snapshot
+                state_weekly = state_weekly.drop_duplicates(subset=['State'], keep='first')
+            
+            # Save weekly snapshot BEFORE loading comparison data
+            # This ensures we're saving the NEW data that was just downloaded
             try:
                 if 'State' in state_weekly.columns and 'Cases' in state_weekly.columns:
                     self.save_weekly_snapshot(state_weekly)
+                    logging.info(f"Saved weekly snapshot with {len(state_weekly)} states")
             except Exception as e:
                 logging.error(f"Failed to save weekly snapshot (non-critical): {e}")
-                # Don't fail the entire process for this
             
-            processed['state_weekly'] = state_weekly
-            logging.info("Processed weekly state data successfully")
+            # NOW load the comparison data from history (not from fresh CDC data)
+            processed['weekly_comparison'] = self.get_weekly_comparison_data()
+            logging.info("Loaded weekly comparison data from history")
             
             # Process vaccine impact data
             logging.info("Processing vaccine impact data...")
@@ -453,10 +471,6 @@ class DataManager:
             
             processed['vaccine_impact'] = merged_vaccine
             logging.info("Processed vaccine impact data successfully")
-            
-            # Add weekly comparison data
-            processed['weekly_comparison'] = self.get_weekly_comparison_data()
-            logging.info("Loaded weekly comparison data")
             
             return processed
             
