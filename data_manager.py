@@ -394,12 +394,17 @@ class DataManager:
                 state_weekly.rename(columns={cases_col: 'Cases'}, inplace=True)
                 state_weekly['Cases'] = pd.to_numeric(state_weekly['Cases'], errors='coerce').fillna(0).astype(int)
             
-            # Get most recent year's data for weekly tracking
+            # For weekly tracking, we want the current data (no year filtering needed)
+            # The CDC map data already contains the most current case counts
             if 'year' in state_weekly.columns:
+                # Just ensure year is numeric but don't filter
                 state_weekly['year'] = pd.to_numeric(state_weekly['year'], errors='coerce')
-                max_year = state_weekly['year'].max()
-                state_weekly = state_weekly[state_weekly['year'] == max_year].copy()
+                logging.info(f"State weekly data years: {state_weekly['year'].unique()}")
             
+            # Remove any duplicate states (keep most recent if duplicates exist)
+            if 'State' in state_weekly.columns:
+                state_weekly = state_weekly.sort_values('year', ascending=False).drop_duplicates(subset=['State'], keep='first')
+                        
             # Save weekly snapshot
             try:
                 if 'State' in state_weekly.columns and 'Cases' in state_weekly.columns:
