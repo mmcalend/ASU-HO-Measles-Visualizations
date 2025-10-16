@@ -20,20 +20,32 @@ logging.basicConfig(
 
 def create_html_page(fig, filename):
     """
-    Create a simple HTML page with just the visualization for iframe embedding
+    Create a responsive HTML page with the visualization for iframe embedding
     
     Args:
         fig: Plotly figure object
         filename (str): Output filename
     """
-    # Generate the HTML with minimal styling for iframe embedding
+    # Generate the HTML with responsive configuration
     html_content = fig.to_html(
         include_plotlyjs='cdn',
         div_id='chart',
-        config={'displayModeBar': False, 'responsive': True}
+        config={
+            'responsive': True,
+            'displayModeBar': True,
+            'displaylogo': False,
+            'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d'],
+            'toImageButtonOptions': {
+                'format': 'png',
+                'filename': 'chart',
+                'height': None,
+                'width': None,
+                'scale': 2
+            }
+        }
     )
     
-    # Add minimal CSS for iframe compatibility
+    # Add responsive CSS for iframe compatibility
     full_html = f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -42,20 +54,64 @@ def create_html_page(fig, filename):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Measles Data Visualization</title>
     <style>
-        body {{
+        * {{
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }}
+        html, body {{
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
             background-color: white;
             font-family: Arial, sans-serif;
         }}
         #chart {{
             width: 100%;
-            height: 100vh;
+            height: 100%;
+            display: block;
+        }}
+        /* Ensure Plotly charts are responsive */
+        .plotly {{
+            width: 100% !important;
+            height: 100% !important;
+        }}
+        .js-plotly-plot {{
+            width: 100% !important;
+            height: 100% !important;
+        }}
+        /* Mobile optimizations */
+        @media (max-width: 768px) {{
+            body {{
+                font-size: 14px;
+            }}
+        }}
+        @media (max-width: 480px) {{
+            body {{
+                font-size: 12px;
+            }}
         }}
     </style>
 </head>
 <body>
     {html_content}
+    <script>
+        // Ensure charts resize properly
+        window.addEventListener('resize', function() {{
+            var plots = document.getElementsByClassName('js-plotly-plot');
+            for (var i = 0; i < plots.length; i++) {{
+                Plotly.Plots.resize(plots[i]);
+            }}
+        }});
+        
+        // Initial resize to ensure proper display
+        window.addEventListener('load', function() {{
+            var plots = document.getElementsByClassName('js-plotly-plot');
+            for (var i = 0; i < plots.length; i++) {{
+                Plotly.Plots.resize(plots[i]);
+            }}
+        }});
+    </script>
 </body>
 </html>
 """
@@ -128,6 +184,7 @@ def generate_visualizations(data):
             return True
         except Exception as e:
             logging.error(f"Failed to create {chart_name}: {e}")
+            logging.error(f"Error details: {str(e)}", exc_info=True)
             # Check if old version exists
             if (output_dir / f"{chart_name}.html").exists():
                 logging.warning(f"Keeping existing {chart_name}.html")
@@ -136,7 +193,7 @@ def generate_visualizations(data):
                 return False
     
     # Generate charts
-    logging.info("Generating charts...")
+    logging.info("Generating responsive charts...")
     
     status['southwest_weekly'] = safe_generate_chart(
         'southwest_weekly', 
@@ -208,9 +265,10 @@ def generate_visualizations(data):
     )
     
     return status
+
 def main():
     """Main application function with improved fallback handling"""
-    logging.info("Starting Measles Data Visualization Generator")
+    logging.info("Starting Measles Data Visualization Generator (Responsive Version)")
     
     try:
         # Check if existing visualizations are present
@@ -282,10 +340,12 @@ def main():
             logging.error("No visualizations were generated and no existing ones found")
             sys.exit(1)
         else:
+            logging.info("Responsive visualizations generated successfully!")
             sys.exit(0)
         
     except Exception as e:
         logging.error(f"Critical error in main application: {e}")
+        logging.error(f"Full error details:", exc_info=True)
         
         # Check if we can keep existing visualizations
         if check_existing_visualizations():
