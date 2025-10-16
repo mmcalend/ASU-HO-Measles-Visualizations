@@ -6,7 +6,7 @@ from datetime import datetime
 
 def create_measles_timeline(timeline_data):
     """
-    Creates a timeline chart showing measles cases over time with key vaccine milestones.
+    Creates a responsive timeline chart showing measles cases over time with key vaccine milestones.
     Uses square root scaling to display both historical peaks and recent trends.
 
     Args:
@@ -19,42 +19,42 @@ def create_measles_timeline(timeline_data):
     import pandas as pd
     import plotly.graph_objects as go
 
-    # Enhanced color palette - organized by temperature and intensity
+    # Enhanced color palette
     colors = {
-        'primary_line': '#313695',      # Deep blue for main data line
-        'milestone_line': '#4575b4',    # Medium blue for milestone lines
-        'national_marker': '#74add1',   # Light blue for national events
-        'arizona_marker': '#fdae61',    # Warm orange for Arizona events
-        'annotation_bg': '#e0f3f8',     # Very light blue for annotation backgrounds
-        'text_primary': 'black',        # Black for primary text
-        'text_secondary': 'black',      # Black for secondary text
-        'text_muted': 'gray'            # Gray for muted text
+        'primary_line': '#313695',
+        'milestone_line': '#4575b4',
+        'national_marker': '#74add1',
+        'arizona_marker': '#fdae61',
+        'annotation_bg': '#e0f3f8',
+        'text_primary': 'black',
+        'text_secondary': 'black',
+        'text_muted': 'gray'
     }
 
-    # Hierarchical font sizing system
+    # Responsive font sizing system
     FONT_SIZES = {
-        'title': 20,           # Chart title (if used)
-        'axis_title': 16,      # Axis titles
-        'axis_tick': 14,       # Axis tick labels
-        'legend': 14,          # Legend text
-        'annotation': 12,      # Event annotations
-        'footer': 10           # Footer/metadata text
+        'title': 16,
+        'axis_title': 13,
+        'axis_tick': 11,
+        'legend': 11,
+        'annotation': 10,
+        'footer': 9
     }
 
     FONT_FAMILY = "Arial"
 
-    # Consistent spacing system
+    # Responsive spacing system
     SPACING = {
-        'margin': {'l': 80, 'r': 80, 't': 100, 'b': 160},  # Increased margins for better spacing
-        'annotation_offset': -65,   # Consistent annotation positioning
-        'legend_y': 1.25,          # Legend positioned higher with more space
-        'footer_y': -0.28          # Footer positioned with adequate spacing
+        'margin': {'l': 50, 'r': 30, 't': 60, 'b': 100},
+        'annotation_offset': -50,
+        'legend_y': 1.15,
+        'footer_y': -0.22
     }
 
     df = timeline_data.copy()
 
-    # Text wrapping for annotations with better formatting
-    def wrap_text(text, width=25):  # Slightly shorter lines for better readability
+    # Text wrapping for annotations
+    def wrap_text(text, width=20):
         if pd.isna(text) or text == "":
             return None
         words = str(text).split()
@@ -75,40 +75,40 @@ def create_measles_timeline(timeline_data):
     # Prepare data
     df["Label_wrapped"] = df.get("Highlight", "").apply(wrap_text)
     has_highlights = df["Label_wrapped"].notna()
-    df['Cases_sqrt'] = np.sqrt(df['Cases'])  # Square root scale for better visibility
+    df['Cases_sqrt'] = np.sqrt(df['Cases'])
 
     fig = go.Figure()
 
-    # Main timeline - cases over time with enhanced styling
+    # Main timeline - cases over time
     fig.add_trace(go.Scatter(
         x=df["Year"],
         y=df["Cases_sqrt"],
         mode="lines",
-        line=dict(color=colors['primary_line'], width=4),
+        line=dict(color=colors['primary_line'], width=3),
         hovertemplate="<b>Year:</b> %{x}<br><b>Measles Cases:</b> %{customdata:,}<extra></extra>",
         customdata=df['Cases'],
         name="Annual Measles Cases",
         showlegend=True
     ))
 
-    # Vaccine milestones - vertical reference lines with better styling
+    # Vaccine milestones - vertical reference lines
     # 1963 - MMR vaccine licensing
     fig.add_trace(go.Scatter(
         x=[1963, 1963],
         y=[0, df['Cases_sqrt'].max()],
         mode='lines',
-        line=dict(color='black', width=3, dash="solid"),
+        line=dict(color='black', width=2, dash="solid"),
         name="MMR Vaccine Licensed (1963)",
         showlegend=True,
         hoverinfo='skip'
     ))
 
-    # 1989 - Two MMR doses recommendation with improved visual distinction
+    # 1989 - Two MMR doses recommendation
     fig.add_trace(go.Scatter(
         x=[1989 - 0.2, 1989 - 0.2],
         y=[0, df['Cases_sqrt'].max()],
         mode='lines',
-        line=dict(color='black', width=3, dash="dash"),
+        line=dict(color='black', width=2, dash="dash"),
         name="Two MMR Doses Recommended (1989)",
         showlegend=True,
         hoverinfo='skip'
@@ -118,8 +118,8 @@ def create_measles_timeline(timeline_data):
         x=[1989 + 0.2, 1989 + 0.2],
         y=[0, df['Cases_sqrt'].max()],
         mode='lines',
-        line=dict(color='black', width=3, dash="dash"),
-        showlegend=False,  # Don't duplicate in legend
+        line=dict(color='black', width=2, dash="dash"),
+        showlegend=False,
         hoverinfo='skip'
     ))
 
@@ -132,14 +132,14 @@ def create_measles_timeline(timeline_data):
         arizona_events = highlight_data[highlight_data['Year'].isin(arizona_years)]
         national_events = highlight_data[~highlight_data['Year'].isin(arizona_years)]
 
-        # National events - circles with consistent styling
+        # National events - circles
         if not national_events.empty:
             fig.add_trace(go.Scatter(
                 x=national_events["Year"],
                 y=national_events["Cases_sqrt"],
                 mode="markers",
                 marker=dict(
-                    size=20,  # Slightly larger for better visibility
+                    size=16,
                     color=colors['national_marker'],
                     symbol="circle",
                     line=dict(color=colors['primary_line'], width=2)
@@ -151,14 +151,14 @@ def create_measles_timeline(timeline_data):
                 showlegend=True
             ))
 
-        # Arizona events - diamonds with warm color
+        # Arizona events - diamonds
         if not arizona_events.empty:
             fig.add_trace(go.Scatter(
                 x=arizona_events["Year"],
                 y=arizona_events["Cases_sqrt"],
                 mode="markers",
                 marker=dict(
-                    size=20,  # Consistent size with national events
+                    size=16,
                     color=colors['arizona_marker'],
                     symbol="diamond",
                     line=dict(color=colors['primary_line'], width=2)
@@ -170,11 +170,10 @@ def create_measles_timeline(timeline_data):
                 showlegend=True
             ))
 
-        # Add annotations for highlighted events with consistent styling
+        # Add annotations for highlighted events
         def create_annotations(data):
             annotations = []
             for _, row in data.iterrows():
-                # Format case numbers consistently
                 cases = row['Cases']
                 if cases >= 1_000_000:
                     cases_text = f"{cases/1_000_000:.1f}M"
@@ -183,10 +182,8 @@ def create_measles_timeline(timeline_data):
                 else:
                     cases_text = f"{cases:,}"
 
-                # Hierarchical text formatting
                 annotation_text = f"<b>{int(row['Year'])}</b><br>{cases_text} cases"
 
-                # Add milestone context with consistent styling
                 if row['Year'] == 1963:
                     annotation_text += "<br><i>MMR vaccine licensed</i>"
                 elif row['Year'] == 1989:
@@ -198,8 +195,8 @@ def create_measles_timeline(timeline_data):
                     text=annotation_text,
                     showarrow=True,
                     arrowhead=0,
-                    arrowsize=0.6,
-                    arrowwidth=2,
+                    arrowsize=0.5,
+                    arrowwidth=1.5,
                     arrowcolor='gray',
                     ax=0,
                     ay=SPACING['annotation_offset'],
@@ -209,19 +206,21 @@ def create_measles_timeline(timeline_data):
                         family=FONT_FAMILY
                     ),
                     align="center",
-                    bgcolor="rgba(255, 255, 255, 0.95)"  # Semi-transparent light blue background
+                    bgcolor="rgba(255, 255, 255, 0.95)"
                 ))
             return annotations
 
         fig.update_layout(annotations=create_annotations(highlight_data))
 
-    # Enhanced layout configuration with consistent spacing
+    # Responsive layout configuration
     last_refreshed = datetime.now().strftime("%B %d, %Y at %I:%M %p")
 
     fig.update_layout(
         title=None,
-        plot_bgcolor='white',  # Clean white background
+        plot_bgcolor='white',
         paper_bgcolor='white',
+        autosize=True,
+        responsive=True,
         legend=dict(
             orientation="h",
             yanchor="top",
@@ -235,12 +234,12 @@ def create_measles_timeline(timeline_data):
             )
         ),
         font=dict(family=FONT_FAMILY, size=FONT_SIZES['axis_tick'], color='black'),
-        margin=SPACING['margin'],
-        autosize=True,
+        margin=dict(l=SPACING['margin']['l'], r=SPACING['margin']['r'], 
+                   t=SPACING['margin']['t'], b=SPACING['margin']['b'], pad=4),
         showlegend=True
     )
 
-    # Enhanced axes configuration with hierarchical typography
+    # Responsive axes configuration
     fig.update_xaxes(
         title=dict(
             text="<b>Year</b>",
@@ -258,12 +257,13 @@ def create_measles_timeline(timeline_data):
         showgrid=False,
         dtick=5,
         linecolor='black',
-        linewidth=2
+        linewidth=2,
+        automargin=True
     )
 
     fig.update_yaxes(
         title=dict(
-            text=" ",  # Hidden since using square root scale
+            text=" ",
             font=dict(
                 size=FONT_SIZES['axis_title'],
                 color='black',
@@ -272,10 +272,11 @@ def create_measles_timeline(timeline_data):
         ),
         showgrid=False,
         showticklabels=False,
-        showline=False
+        showline=False,
+        automargin=True
     )
 
-    # Enhanced footer note with proper typography hierarchy
+    # Footer note
     fig.add_annotation(
         text=(f"<b>Last refreshed:</b> {last_refreshed}<br>"
               "<i>Note: Chart uses square-root scale to show both historical peaks and recent trends</i>"),
@@ -295,7 +296,7 @@ def create_measles_timeline(timeline_data):
 
 def create_recent_trends(usmeasles_data, mmr_data):
     """
-    Creates a dual-axis chart showing recent measles cases (bars) and MMR vaccination
+    Creates a responsive dual-axis chart showing recent measles cases (bars) and MMR vaccination
     coverage (line) with herd immunity threshold.
 
     Args:
@@ -308,7 +309,7 @@ def create_recent_trends(usmeasles_data, mmr_data):
     import pandas as pd
     import plotly.graph_objects as go
 
-    # Enhanced color palette using your full color scheme
+    # Enhanced color palette
     colors = {
         'deep_red': '#a50026',
         'red': '#d73027',
@@ -323,24 +324,24 @@ def create_recent_trends(usmeasles_data, mmr_data):
         'deep_blue': '#313695'
     }
 
-    # Hierarchical font sizing system with responsive considerations
+    # Responsive font sizing system
     FONT_SIZES = {
-        'title': 20,           # Chart title (if used)
-        'axis_title': 16,      # Axis titles - scales well on mobile
-        'axis_tick': 14,       # Axis tick labels
-        'legend': 14,          # Legend text
-        'annotation': 11,      # Event annotations - slightly smaller for mobile
-        'footer': 10           # Footer/metadata text
+        'title': 16,
+        'axis_title': 13,
+        'axis_tick': 11,
+        'legend': 11,
+        'annotation': 10,
+        'footer': 9
     }
 
     FONT_FAMILY = "Arial"
 
-    # Consistent spacing system with responsive considerations
+    # Responsive spacing system
     SPACING = {
-        'margin': {'l': 60, 'r': 40, 't': 80, 'b': 120},  # Reduced margins for mobile
-        'annotation_offset': -65,   # Consistent annotation positioning
-        'legend_y': 1.2,           # Legend positioned with better mobile spacing
-        'footer_y': -0.25          # Footer positioned with mobile consideration
+        'margin': {'l': 50, 'r': 60, 't': 60, 'b': 100},
+        'annotation_offset': -50,
+        'legend_y': 1.15,
+        'footer_y': -0.22
     }
 
     # Data validation
@@ -397,10 +398,10 @@ def create_recent_trends(usmeasles_data, mmr_data):
         if not valid_vaccination.empty:
             has_vaccination_data = True
 
-            # Herd immunity threshold line (add first so it appears behind)
+            # Herd immunity threshold line
             fig.add_hline(
                 y=95,
-                line=dict(dash="dash", color="black", width=3),
+                line=dict(dash="dash", color="black", width=2),
                 yref="y2"
             )
 
@@ -408,21 +409,21 @@ def create_recent_trends(usmeasles_data, mmr_data):
             fig.add_trace(go.Scatter(
                 x=[None], y=[None],
                 mode="lines",
-                line=dict(dash="dash", color="black", width=3),
+                line=dict(dash="dash", color="black", width=2),
                 name="95% Herd Immunity Threshold",
                 showlegend=True,
                 hoverinfo='skip'
             ))
 
-            # MMR coverage line (add after so it appears in front)
+            # MMR coverage line
             fig.add_trace(go.Scatter(
                 x=valid_vaccination["year"],
                 y=valid_vaccination["MMR"],
                 name="MMR Vaccination Coverage (%)",
                 mode="lines+markers",
-                line=dict(color=colors['orange'], width=4),
+                line=dict(color=colors['orange'], width=3),
                 marker=dict(
-                    size=16,
+                    size=14,
                     color=colors['orange'],
                     line=dict(color='white', width=2)
                 ),
@@ -431,11 +432,13 @@ def create_recent_trends(usmeasles_data, mmr_data):
                 showlegend=True
             ))
 
-    # Enhanced layout configuration with consistent spacing
+    # Responsive layout configuration
     fig.update_layout(
         title=None,
-        plot_bgcolor='white',  # Clean white background
+        plot_bgcolor='white',
         paper_bgcolor='white',
+        autosize=True,
+        responsive=True,
         legend=dict(
             orientation="h",
             yanchor="top",
@@ -449,10 +452,14 @@ def create_recent_trends(usmeasles_data, mmr_data):
             )
         ),
         font=dict(family=FONT_FAMILY, size=FONT_SIZES['axis_tick'], color='black'),
-        margin=dict(l=SPACING['margin']['l'], r=80 if has_vaccination_data else SPACING['margin']['r'], t=SPACING['margin']['t'], b=SPACING['margin']['b'])
+        margin=dict(l=SPACING['margin']['l'], 
+                   r=SPACING['margin']['r'] if has_vaccination_data else 30,
+                   t=SPACING['margin']['t'], 
+                   b=SPACING['margin']['b'], 
+                   pad=4)
     )
 
-    # Enhanced axes configuration with hierarchical typography
+    # Responsive axes configuration
     # X-axis - years
     fig.update_xaxes(
         title=dict(
@@ -472,7 +479,8 @@ def create_recent_trends(usmeasles_data, mmr_data):
         showgrid=False,
         range=[us_data["year"].min() - 0.5, us_data["year"].max() + 0.5],
         linecolor='black',
-        linewidth=2
+        linewidth=2,
+        automargin=True
     )
 
     # Primary Y-axis - measles cases
@@ -492,7 +500,8 @@ def create_recent_trends(usmeasles_data, mmr_data):
         ),
         showgrid=False,
         range=[0, max(us_data["cases"]) * 1.1],
-        showline=False
+        showline=False,
+        automargin=True
     )
 
     # Secondary Y-axis - vaccination coverage (if data exists)
@@ -515,13 +524,14 @@ def create_recent_trends(usmeasles_data, mmr_data):
                 overlaying="y",
                 side="right",
                 range=[85, 100],
-                showgrid=False
+                showgrid=False,
+                automargin=True
             )
         )
 
-        # Threshold annotation with consistent styling
+        # Threshold annotation
         fig.add_annotation(
-            x=2020.5,  # Original position
+            x=2020.5,
             y=95,
             text="<b>95% HERD IMMUNITY THRESHOLD</b>",
             showarrow=True,
@@ -534,11 +544,11 @@ def create_recent_trends(usmeasles_data, mmr_data):
             font=dict(size=FONT_SIZES['annotation'], color="white", family=FONT_FAMILY),
             align="center",
             bgcolor="black",
-            borderpad=8,
+            borderpad=6,
             yref="y2"
         )
 
-    # Enhanced footer note with proper typography hierarchy
+    # Footer note
     last_refreshed = datetime.now().strftime("%B %d, %Y at %I:%M %p")
     fig.add_annotation(
         text=f"<b>Last refreshed:</b> {last_refreshed}",
@@ -558,9 +568,8 @@ def create_recent_trends(usmeasles_data, mmr_data):
 
 def create_rnaught_comparison():
     """
-    Creates a comparative visualization of basic reproduction numbers (R₀) across diseases.
-    Shows how many people each infected person could potentially infect using a dot plot
-    where each circle represents 20 people.
+    Creates a responsive comparative visualization of basic reproduction numbers (R₀) across diseases.
+    Shows how many people each infected person could potentially infect using a dot plot.
 
     Returns:
         plotly Figure object
@@ -570,7 +579,7 @@ def create_rnaught_comparison():
     import plotly.graph_objects as go
     import math
 
-    # Enhanced color palette using your full color scheme
+    # Enhanced color palette
     colors = {
         'deep_red': '#a50026',
         'red': '#d73027',
@@ -585,24 +594,23 @@ def create_rnaught_comparison():
         'deep_blue': '#313695'
     }
 
-    # Hierarchical font sizing system with responsive considerations
+    # Responsive font sizing system
     FONT_SIZES = {
-        'title': 20,           # Chart title (if used)
-        'axis_title': 16,      # Axis titles - scales well on mobile
-        'axis_tick': 14,       # Axis tick labels
-        'legend': 14,          # Legend text
-        'annotation': 11,      # Event annotations - slightly smaller for mobile
-        'footer': 10           # Footer/metadata text
+        'title': 16,
+        'axis_title': 13,
+        'axis_tick': 11,
+        'legend': 11,
+        'annotation': 10,
+        'footer': 9
     }
 
     FONT_FAMILY = "Arial"
 
-    # Consistent spacing system with responsive considerations
+    # Responsive spacing system
     SPACING = {
-        'margin': {'l': 60, 'r': 40, 't': 80, 'b': 120},  # Reduced margins for mobile
-        'annotation_offset': -65,   # Consistent annotation positioning
-        'legend_y': 1.2,           # Legend positioned with better mobile spacing
-        'footer_y': -0.25          # Footer positioned with mobile consideration
+        'margin': {'l': 50, 'r': 30, 't': 70, 'b': 100},
+        'legend_y': 1.12,
+        'footer_y': -0.22
     }
 
     # Disease data with R₀ values
@@ -616,22 +624,22 @@ def create_rnaught_comparison():
 
     # Layout parameters for dot plot
     TOTAL_DISEASES = len(df)
-    X_SPACING = 5                    # Horizontal spacing between disease groups
-    Y_POSITION = 0                   # Vertical center line
-    TOTAL_DOTS = 20                  # Total people represented in each circle
-    DOT_SIZE = 16                    # Individual person dot size
-    CIRCLE_RADIUS = 1.3              # Radius of person arrangement
-    CENTER_DOT_SIZE = 22             # Index case (central) dot size
+    X_SPACING = 5
+    Y_POSITION = 0
+    TOTAL_DOTS = 20
+    DOT_SIZE = 14
+    CIRCLE_RADIUS = 1.3
+    CENTER_DOT_SIZE = 18
 
     # Color assignments
-    INFECTED_COLOR = colors['red']           # People who could be infected
-    NOT_INFECTED_COLOR = '#d3d3d3'           # People who remain uninfected (light gray)
-    INDEX_CASE_COLOR = colors['orange']      # Original infected person (gold-like)
+    INFECTED_COLOR = colors['red']
+    NOT_INFECTED_COLOR = '#d3d3d3'
+    INDEX_CASE_COLOR = colors['orange']
 
     # Generate visualization for each disease
     for i, (disease, r0) in enumerate(zip(df['Disease'], df['R0'])):
-        cx = i * X_SPACING  # Center X coordinate for this disease
-        cy = Y_POSITION     # Center Y coordinate
+        cx = i * X_SPACING
+        cy = Y_POSITION
 
         # Calculate positions for 20 people in circular arrangement
         angles = np.linspace(0, 2 * math.pi, TOTAL_DOTS, endpoint=False)
@@ -640,10 +648,10 @@ def create_rnaught_comparison():
 
         # Add dots representing individual people
         for j in range(TOTAL_DOTS):
-            if j < r0:  # This person could be infected based on R₀
+            if j < r0:
                 dot_color = INFECTED_COLOR
                 hover_text = f"{disease}: This person could be infected"
-            else:       # This person remains uninfected
+            else:
                 dot_color = NOT_INFECTED_COLOR
                 hover_text = f"{disease}: This person is not infected"
 
@@ -654,13 +662,13 @@ def create_rnaught_comparison():
                 marker=dict(
                     size=DOT_SIZE,
                     color=dot_color,
-                    line=dict(width=2, color='white')
+                    line=dict(width=1.5, color='white')
                 ),
                 hovertemplate=f"<b>{hover_text}</b><extra></extra>",
                 showlegend=False
             ))
 
-        # Add central index case (patient zero)
+        # Add central index case
         fig.add_trace(go.Scatter(
             x=[cx],
             y=[cy],
@@ -674,11 +682,11 @@ def create_rnaught_comparison():
             showlegend=False
         ))
 
-        # Add transmission lines from index case to potentially infected individuals
+        # Add transmission lines
         line_x, line_y = [], []
         for j in range(TOTAL_DOTS):
-            if j < r0:  # Draw connection line to potentially infected person
-                line_x.extend([cx, x_coords[j], None])  # None creates line break
+            if j < r0:
+                line_x.extend([cx, x_coords[j], None])
                 line_y.extend([cy, y_coords[j], None])
 
         if line_x:
@@ -686,8 +694,8 @@ def create_rnaught_comparison():
                 x=line_x,
                 y=line_y,
                 mode='lines',
-                line=dict(width=2, color=INFECTED_COLOR),
-                opacity=0.6,  # Move opacity to trace level, not line level
+                line=dict(width=1.5, color=INFECTED_COLOR),
+                opacity=0.6,
                 hoverinfo='skip',
                 showlegend=False
             ))
@@ -704,20 +712,22 @@ def create_rnaught_comparison():
             align="center"
         )
 
-    # Calculate layout bounds for proper display
+    # Calculate layout bounds
     x_min = -CIRCLE_RADIUS - 1.0
     x_max = (TOTAL_DISEASES - 1) * X_SPACING + CIRCLE_RADIUS + 1.0
     y_min = Y_POSITION - CIRCLE_RADIUS - 2.5
     y_max = Y_POSITION + CIRCLE_RADIUS + 1.0
 
-    # Enhanced layout configuration with consistent spacing
+    # Responsive layout configuration
     fig.update_layout(
         title=None,
-        plot_bgcolor='white',  # Clean white background
+        plot_bgcolor='white',
         paper_bgcolor='white',
+        autosize=True,
+        responsive=True,
         font=dict(family=FONT_FAMILY, size=FONT_SIZES['axis_tick'], color='black'),
-        margin=SPACING['margin'],  # Use consistent margins
-        autosize=True,  # Enable responsive sizing
+        margin=dict(l=SPACING['margin']['l'], r=SPACING['margin']['r'], 
+                   t=SPACING['margin']['t'], b=SPACING['margin']['b'], pad=4),
         xaxis=dict(
             visible=False,
             range=[x_min, x_max]
@@ -731,18 +741,18 @@ def create_rnaught_comparison():
         showlegend=False
     )
 
-    # Add legend explanation with colored dots, left-justified
+    # Add legend explanation
     fig.add_annotation(
         text='Each circle shows 20 people. The orange <span style="color:#fdae61">●</span> dot is the first infected person. Red <span style="color:#d73027">●</span> dots show potential infections (R₀). Grey <span style="color:#d3d3d3">●</span> dots are not infected people.',
         xref="paper", yref="paper",
-        x=0.0, y=1.15,  # Top left corner
+        x=0.0, y=SPACING['legend_y'],
         xanchor="left", yanchor="top",
         showarrow=False,
         font=dict(size=FONT_SIZES['legend'], color="black", family=FONT_FAMILY),
         align="left"
     )
 
-    # Enhanced footer note with proper typography hierarchy
+    # Footer note
     last_refreshed = datetime.now().strftime("%B %d, %Y at %I:%M %p")
     fig.add_annotation(
         text=(f"<b>Last refreshed:</b> {last_refreshed}<br>"),
@@ -759,31 +769,25 @@ def create_rnaught_comparison():
     )
 
     return fig
-    return fig
 
 def create_bivariate_choropleth(usmap_data):
     """
-    Creates a bivariate choropleth map showing both MMR coverage and measles case rates
-    with improved spacing and properly positioned state abbreviations.
+    Creates a responsive bivariate choropleth map showing both MMR coverage and measles case rates.
     """
     import plotly.graph_objects as go
     import pandas as pd
     import numpy as np
     from datetime import datetime
 
-    # Your exact 9-color palette arranged in 3x3 matrix
-    # Rows: Case rate (high to low), Cols: MMR coverage (low to high)
-    # Logical progression from red (concerning) to blue (excellent)
+    # 9-color bivariate palette
     bivariate_colors = [
-        ['#d73027', '#f46d43', '#fdae61'],  # High case rate: red → orange-red → orange
-        ['#fee090', '#ffffbf', '#e0f3f8'],  # Medium case rate: light orange → pale yellow → very light blue
-        ['#abd9e9', '#74add1', '#4575b4']   # Low case rate: light blue → medium blue → dark blue
+        ['#d73027', '#f46d43', '#fdae61'],
+        ['#fee090', '#ffffbf', '#e0f3f8'],
+        ['#abd9e9', '#74add1', '#4575b4']
     ]
 
-    # Gray for missing data
     missing_color = '#E0E0E0'
 
-    # Category labels for detailed classification
     category_labels = [
         ["High Cases, Low Vaccination", "High Cases, Medium Vaccination", "High Cases, High Vaccination"],
         ["Medium Cases, Low Vaccination", "Medium Cases, Medium Vaccination", "Medium Cases, High Vaccination"],
@@ -820,7 +824,6 @@ def create_bivariate_choropleth(usmap_data):
         'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY'
     }
 
-    # Improved state centroid coordinates for better label positioning
     state_centroids = {
         'AL': [-86.87, 32.78], 'AK': [-153.31, 64.0], 'AZ': [-111.57, 34.29], 'AR': [-92.37, 34.97],
         'CA': [-119.42, 36.78], 'CO': [-105.51, 39.06], 'CT': [-72.76, 41.60], 'DE': [-75.50, 39.00],
@@ -865,21 +868,19 @@ def create_bivariate_choropleth(usmap_data):
 
     def classify_detailed_bivariate(case_rate, mmr_coverage):
         """Classify states into detailed 3x3 bivariate categories"""
-        # Case rate classification (0=low, 1=medium, 2=high)
         if case_rate <= 1.0:
-            case_class = 2  # Low cases (bottom row)
+            case_class = 2
         elif case_rate <= 3.0:
-            case_class = 1  # Medium cases (middle row)
+            case_class = 1
         else:
-            case_class = 0  # High cases (top row)
+            case_class = 0
 
-        # MMR coverage classification (0=low, 1=medium, 2=high)
         if mmr_coverage < 92:
-            mmr_class = 0  # Low coverage
+            mmr_class = 0
         elif mmr_coverage < 96:
-            mmr_class = 1  # Medium coverage
+            mmr_class = 1
         else:
-            mmr_class = 2  # High coverage
+            mmr_class = 2
 
         return case_class, mmr_class, category_labels[case_class][mmr_class]
 
@@ -893,7 +894,6 @@ def create_bivariate_choropleth(usmap_data):
     df_clean['category_label'] = [result[2] for result in classification_results]
     df_clean['color'] = [bivariate_colors[result[0]][result[1]] for result in classification_results]
 
-    # Add color to main df for state abbreviation text color determination
     df = df.merge(df_clean[['state_code', 'color']], on='state_code', how='left')
     df['color'] = df['color'].fillna(missing_color)
 
@@ -927,7 +927,7 @@ def create_bivariate_choropleth(usmap_data):
             showlegend=False
         ))
 
-    # Create separate traces for each bivariate category (3x3 = 9 possible combinations)
+    # Create separate traces for each bivariate category
     for case_class in range(3):
         for mmr_class in range(3):
             subset = df_clean[(df_clean['case_class'] == case_class) & (df_clean['mmr_class'] == mmr_class)]
@@ -962,31 +962,32 @@ def create_bivariate_choropleth(usmap_data):
                     showlegend=False
                 ))
 
-    # Improved layout with better spacing and footer positioning
+    # Responsive layout with full screen positioning
     fig.update_layout(
         geo=dict(
             scope='usa',
             projection=go.layout.geo.Projection(type='albers usa'),
             showlakes=True,
             lakecolor='rgb(255, 255, 255)',
-            domain=dict(x=[0, 1.0], y=[0.0, 1.0])  # Full screen positioning
+            domain=dict(x=[0, 1.0], y=[0.0, 1.0])
         ),
         plot_bgcolor='white',
         paper_bgcolor='white',
-        font=dict(family='Arial, sans-serif', size=12),
-        autosize=True,  # Make responsive
-        margin=dict(l=0, r=0, t=0, b=0)  # Remove all margins for full screen
+        autosize=True,
+        responsive=True,
+        font=dict(family='Arial, sans-serif', size=10),
+        margin=dict(l=0, r=0, t=0, b=0, pad=0)
     )
 
-    # Create 3x3 bivariate legend in top left corner with better spacing
+    # Create 3x3 bivariate legend
     legend_x = 0.03
     legend_y = 0.95
     cell_size = 0.032
     spacing = 0.005
 
-    # Add 3x3 legend grid with consistent spacing
-    for i in range(3):  # Case rate (rows)
-        for j in range(3):  # MMR coverage (cols)
+    # Add 3x3 legend grid
+    for i in range(3):
+        for j in range(3):
             fig.add_shape(
                 type="rect",
                 xref="paper", yref="paper",
@@ -998,7 +999,7 @@ def create_bivariate_choropleth(usmap_data):
                 line=dict(color="white", width=1)
             )
 
-    # Add missing data legend square - positioned below the main legend
+    # Add missing data legend square
     fig.add_shape(
         type="rect",
         xref="paper", yref="paper",
@@ -1010,79 +1011,50 @@ def create_bivariate_choropleth(usmap_data):
         line=dict(color="white", width=1)
     )
 
-    # Add "No Data" label - positioned to the right of the box
     fig.add_annotation(
         text="Missing Data",
         xref="paper", yref="paper",
         x=legend_x + cell_size + spacing,
         y=legend_y - 3.5 * (cell_size + spacing) - 0.025,
         showarrow=False,
-        font=dict(size=14, color='black'),
+        font=dict(size=12, color='black'),
         xanchor="left", yanchor="middle"
     )
 
-    # Add axis titles with better positioning and requested formatting
-    # Horizontal axis title (above the grid)
-# Horizontal axis title (above the grid)
+    # Add axis titles
     fig.add_annotation(
         text="← MMR Vaccine Coverage →",
         xref="paper", yref="paper",
         x=legend_x + 1.5 * (cell_size + spacing),
         y=legend_y - 0.005,
         showarrow=False,
-        font=dict(size=14, color='black', family='Arial'),
+        font=dict(size=12, color='black', family='Arial'),
         xanchor="center", 
-        yanchor="bottom"   
+        yanchor="bottom"
     )
+    
     fig.add_annotation(
         text="← Case Rate →",
         xref="paper", yref="paper",
-        x=legend_x - 0.013,  # Moved closer to the legend
-        y=legend_y - 1.5 * (cell_size + spacing) - 0.02,  # Better vertical centering
+        x=legend_x - 0.013,
+        y=legend_y - 1.5 * (cell_size + spacing) - 0.02,
         showarrow=False,
-        font=dict(size=14, color='black', family='Arial'),  # Made bold for better visibility
+        font=dict(size=12, color='black', family='Arial'),
         xanchor="center", 
         yanchor="middle",
-        textangle=90  # Rotate text 90 degrees
+        textangle=90
     )
 
     # Function to determine text color based on background color
     def get_text_color(hex_color):
-        """Determine if text should be black or white based on background color brightness"""
-        # Remove # if present
         hex_color = hex_color.lstrip('#')
-
-        # Convert to RGB
         r = int(hex_color[0:2], 16)
         g = int(hex_color[2:4], 16)
         b = int(hex_color[4:6], 16)
-
-        # Calculate luminance
         luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-
         return 'black' if luminance > 0.5 else 'white'
 
-    # Add state abbreviation labels using scattergeo with responsive sizing
-    # Create separate scatter traces for different text colors to ensure visibility
-
-    # Calculate responsive font size based on figure dimensions
-    base_width = 1000
-    base_height = 800
-    base_font_size = 10
-
-    # Get current figure dimensions
-    current_width = fig.layout.width or base_width
-    current_height = fig.layout.height or base_height
-
-    # Calculate scaling factor (use the smaller of width/height scaling to prevent oversizing)
-    width_scale = current_width / base_width
-    height_scale = current_height / base_height
-    scale_factor = min(width_scale, height_scale)
-
-    # Calculate responsive font size with reasonable bounds
-    responsive_font_size = max(6, min(14, int(base_font_size * scale_factor)))
-
-    # Separate states by text color needed
+    # Add state abbreviation labels - responsive sizing
     black_text_states = []
     white_text_states = []
 
@@ -1105,48 +1077,47 @@ def create_bivariate_choropleth(usmap_data):
             else:
                 white_text_states.append(state_info)
 
-    # Add black text labels with responsive sizing
+    # Add black text labels
     if black_text_states:
         fig.add_trace(go.Scattergeo(
             lon=[s['lon'] for s in black_text_states],
             lat=[s['lat'] for s in black_text_states],
             text=[s['text'] for s in black_text_states],
             mode='text',
-            textfont=dict(size=responsive_font_size, color='black', family='Arial'),
+            textfont=dict(size=9, color='black', family='Arial'),
             showlegend=False,
             hoverinfo='skip'
         ))
 
-    # Add white text labels with responsive sizing
+    # Add white text labels
     if white_text_states:
         fig.add_trace(go.Scattergeo(
             lon=[s['lon'] for s in white_text_states],
             lat=[s['lat'] for s in white_text_states],
             text=[s['text'] for s in white_text_states],
             mode='text',
-            textfont=dict(size=responsive_font_size, color='white', family='Arial'),
+            textfont=dict(size=9, color='white', family='Arial'),
             showlegend=False,
             hoverinfo='skip'
         ))
 
-    # Add timestamp and notes positioned at the bottom for full screen
+    # Add timestamp and notes
     fig.add_annotation(
-         text=(f"<b>Last refreshed:</b> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}<br>"
+        text=(f"<b>Last refreshed:</b> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}<br>"
               "<i>Note: Grey states are missing vaccination coverage data from the 2024-2025 school year</i>"),
         xref="paper", yref="paper",
-        x=0.02, y=0.02,  # Position at bottom left for full screen
+        x=0.02, y=0.02,
         showarrow=False,
-        font=dict(size=10, color='gray'),
-        xanchor="left", yanchor="bottom",  # Anchor to bottom
+        font=dict(size=9, color='gray'),
+        xanchor="left", yanchor="bottom",
         align="left"
     )
 
     return fig
-    
+
 def create_lives_saved_chart(vaccine_impact_data):
     """
-    Create bar chart visualization of estimated lives saved by vaccination programs
-    with discrete color bins and clean styling.
+    Create responsive bar chart visualization of estimated lives saved by vaccination programs.
     """
     import plotly.graph_objects as go
     import pandas as pd
@@ -1176,53 +1147,44 @@ def create_lives_saved_chart(vaccine_impact_data):
             year_col = col
             break
 
-    # Validate required columns
     if lives_saved_col is None or year_col is None:
         return go.Figure()
 
-    # Define custom bins with increments of 200
+    # Define custom bins
     increment = 200
-
     min_val = df[lives_saved_col].min()
     max_val = df[lives_saved_col].max()
 
-    # Create bins with the specified increment
-    # Start from a multiple of increment below min_val
     start_bin = math.floor(min_val / increment) * increment
-    # End at a multiple of increment above max_val to ensure max_val is included
     end_bin = math.ceil(max_val / increment) * increment + increment
 
     custom_bins = list(range(start_bin, end_bin, increment))
 
-    # Ensure min_val and max_val are explicitly included if they aren't exact bin edges
     if custom_bins[0] > min_val:
         custom_bins.insert(0, min_val)
     if custom_bins[-1] < max_val:
-         custom_bins.append(max_val)
+        custom_bins.append(max_val)
 
-    # Ensure custom_bins are increasing and unique
     custom_bins = sorted(list(set(custom_bins)))
 
-    # Select colors from the palette to match the number of custom bins
+    # Select colors
     num_bins = len(custom_bins) - 1
     if num_bins > len(color_palette):
-        # If more bins than colors, sample evenly from the palette
         color_indices = np.linspace(0, len(color_palette) - 1, num_bins, dtype=int)
         bin_colors = [color_palette[i] for i in color_indices]
     else:
-         # If fewer or equal bins than colors, select colors evenly across the palette
         color_indices = np.linspace(0, len(color_palette) - 1, num_bins, dtype=int)
         bin_colors = [color_palette[i] for i in color_indices]
 
-    # Create bin labels based on custom bins
+    # Create bin labels
     bin_labels = []
     for i in range(len(custom_bins) - 1):
         lower_bound = custom_bins[i]
         upper_bound = custom_bins[i+1]
         if i == 0 and lower_bound == df[lives_saved_col].min():
-             label = f"≤{upper_bound:,.0f}"
+            label = f"≤{upper_bound:,.0f}"
         elif i == len(custom_bins) - 2 and upper_bound == df[lives_saved_col].max():
-             label = f"≥{lower_bound:,.0f}"
+            label = f"≥{lower_bound:,.0f}"
         else:
             label = f"{lower_bound:,.0f}-{upper_bound:,.0f}"
         bin_labels.append(label)
@@ -1232,24 +1194,23 @@ def create_lives_saved_chart(vaccine_impact_data):
     df['color'] = df['bin_index'].map(lambda x: bin_colors[int(x)] if pd.notna(x) and int(x) < len(bin_colors) else bin_colors[0])
     df['bin_label'] = df['bin_index'].map(lambda x: bin_labels[int(x)] if pd.notna(x) and int(x) < len(bin_labels) else bin_labels[0])
 
-    # Font sizing system matching the second function
+    # Responsive font sizing
     FONT_SIZES = {
-        'title': 20,           # Chart title (if used)
-        'axis_title': 16,      # Axis titles
-        'axis_tick': 14,       # Axis tick labels
-        'legend': 14,          # Legend text
-        'annotation': 11,      # Event annotations - slightly smaller for mobile
-        'footer': 10           # Footer/metadata text
+        'title': 16,
+        'axis_title': 13,
+        'axis_tick': 11,
+        'legend': 11,
+        'annotation': 10,
+        'footer': 9
     }
 
     FONT_FAMILY = "Arial"
 
-    # Consistent spacing system matching the second function
+    # Responsive spacing
     SPACING = {
-        'margin': {'l': 60, 'r': 40, 't': 80, 'b': 120},  # Reduced margins for mobile
-        'annotation_offset': -65,   # Consistent annotation positioning
-        'legend_y': 1.2,           # Legend positioned with better spacing
-        'footer_y': -0.25          # Footer positioned properly
+        'margin': {'l': 50, 'r': 30, 't': 60, 'b': 100},
+        'legend_y': 1.15,
+        'footer_y': -0.22
     }
 
     fig = go.Figure()
@@ -1272,17 +1233,19 @@ def create_lives_saved_chart(vaccine_impact_data):
         showlegend=False
     ))
 
-    # Layout with consistent spacing
+    # Responsive layout
     fig.update_layout(
         plot_bgcolor='white',
         paper_bgcolor='white',
-        font=dict(family=FONT_FAMILY, size=FONT_SIZES['axis_tick'], color='black'),
         autosize=True,
+        responsive=True,
+        font=dict(family=FONT_FAMILY, size=FONT_SIZES['axis_tick'], color='black'),
         margin=dict(
             l=SPACING['margin']['l'], 
             r=SPACING['margin']['r'], 
             t=SPACING['margin']['t'], 
-            b=SPACING['margin']['b']
+            b=SPACING['margin']['b'],
+            pad=4
         ),
         xaxis=dict(
             title='<b>Year</b>',
@@ -1290,7 +1253,8 @@ def create_lives_saved_chart(vaccine_impact_data):
             linecolor='rgba(0,0,0,0)',
             linewidth=0,
             title_font=dict(size=FONT_SIZES['axis_title'], color='black', family=FONT_FAMILY),
-            tickfont=dict(size=FONT_SIZES['axis_tick'], color='black', family=FONT_FAMILY)
+            tickfont=dict(size=FONT_SIZES['axis_tick'], color='black', family=FONT_FAMILY),
+            automargin=True
         ),
         yaxis=dict(
             title='<b>Lives Saved (Estimated)</b>',
@@ -1299,22 +1263,21 @@ def create_lives_saved_chart(vaccine_impact_data):
             linecolor='rgba(0,0,0,0)',
             linewidth=0,
             title_font=dict(size=FONT_SIZES['axis_title'], color='black', family=FONT_FAMILY),
-            tickfont=dict(size=FONT_SIZES['axis_tick'], color='black', family=FONT_FAMILY)
+            tickfont=dict(size=FONT_SIZES['axis_tick'], color='black', family=FONT_FAMILY),
+            automargin=True
         )
     )
 
-    # Create horizontal legend with proper positioning
-    legend_x = 0.0  # Start from left edge to match second function
-    legend_y = SPACING['legend_y']  # Use consistent spacing
+    # Create horizontal legend
+    legend_x = 0.0
+    legend_y = SPACING['legend_y']
     cell_height = 0.03
     cell_width = 0.02
     spacing = 0.005
 
-    # Add legend title
     legend_text = "Lives Saved Range: "
     current_x = legend_x + 0.01
 
-    # Add the title text
     fig.add_annotation(
         text=legend_text,
         xref="paper", yref="paper",
@@ -1324,15 +1287,12 @@ def create_lives_saved_chart(vaccine_impact_data):
         xanchor="left", yanchor="middle"
     )
 
-    # Estimate width of the title text
     estimated_title_width_paper_units = 0.13
     current_x += estimated_title_width_paper_units + 0.005
 
-    # Show only a subset of bins in the legend for clarity if there are many
     display_bin_indices = np.linspace(0, len(bin_labels) - 1, min(len(bin_labels), 8), dtype=int)
 
     for i in display_bin_indices:
-        # Add colored rectangle
         fig.add_shape(
             type="rect",
             xref="paper", yref="paper",
@@ -1342,7 +1302,6 @@ def create_lives_saved_chart(vaccine_impact_data):
             line=dict(color="white", width=1)
         )
 
-        # Add label
         label_text = bin_labels[i]
         label_x_position = current_x + cell_width + spacing
         fig.add_annotation(
@@ -1354,14 +1313,13 @@ def create_lives_saved_chart(vaccine_impact_data):
             xanchor="left", yanchor="middle"
         )
 
-        # Update current x position for the next item
         estimated_label_width_paper_units = len(label_text) * 0.008
         current_x = label_x_position + estimated_label_width_paper_units + spacing
 
-    # Add footer with proper spacing matching the second function
+    # Add footer
     last_refreshed = datetime.now().strftime('%B %d, %Y at %I:%M %p')
     fig.add_annotation(
-          text=(f"<b>Last refreshed:</b> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}<br>"
+        text=(f"<b>Last refreshed:</b> {last_refreshed}<br>"
               "<i>Note: These are mathematical model estimates, not observed deaths</i>"),
         xref="paper", yref="paper",
         x=0.0, y=SPACING['footer_y'],
@@ -1373,14 +1331,14 @@ def create_lives_saved_chart(vaccine_impact_data):
 
     return fig
 
-
 def create_southwest_weekly_comparison(weekly_data):
-
+    """
+    Creates a responsive table showing weekly measles case comparison for Southwest states.
+    """
     import plotly.graph_objects as go
     import pandas as pd
     from datetime import datetime, timedelta
     
-    # State health department URLs for reference
     state_urls = {
         'Arizona': 'https://www.azdhs.gov/preparedness/epidemiology-disease-control/measles/index.php',
         'Texas': 'https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025',
@@ -1390,36 +1348,30 @@ def create_southwest_weekly_comparison(weekly_data):
         'Nevada': 'https://nvose.org/data-statistics/'
     }
     
-    # Ordered list of states
     southwest_states = ['Arizona', 'Texas', 'New Mexico', 'Utah', 'California', 'Nevada']
     
-    # Color scheme in order: header, then 6 state rows
     colors_in_order = ['rgba(208, 208, 208, 0.3)', 'rgba(215, 48, 39, 0.3)', 'rgba(252, 141, 89, 0.3)', 
                        'rgba(254, 224, 144, 0.3)', 'rgba(224, 243, 248, 0.3)', 'rgba(145, 191, 219, 0.3)', 
                        'rgba(69, 117, 180, 0.3)']
     header_color = colors_in_order[0]
-    state_row_colors = colors_in_order[1:]  # Colors for the 6 state rows
+    state_row_colors = colors_in_order[1:]
     
-    # Font colors for each row (white for dark backgrounds, black for light)
-    font_colors = ['black', 'black', 'black', 'black', 'black', 'black']  # Matches state_row_colors
+    font_colors = ['black', 'black', 'black', 'black', 'black', 'black']
     
-    # Get current and previous week data
     current_df = weekly_data.get('current', pd.DataFrame())
     previous_df = weekly_data.get('previous', pd.DataFrame())
     
     if current_df.empty:
-        # Return empty figure with message
         fig = go.Figure()
         fig.add_annotation(
             text="No data available",
             xref="paper", yref="paper",
             x=0.5, y=0.5,
             showarrow=False,
-            font=dict(size=16, color='gray')
+            font=dict(size=14, color='gray')
         )
         return fig
     
-    # Calculate week start dates
     current_week_start = datetime.now() - timedelta(days=datetime.now().weekday())
     current_week_str = current_week_start.strftime('%m/%d/%y')
     
@@ -1429,10 +1381,8 @@ def create_southwest_weekly_comparison(weekly_data):
     else:
         last_week_str = 'N/A'
     
-    # Filter to Southwest states
     current_filtered = current_df[current_df['State'].isin(southwest_states)].copy()
     
-    # Merge with previous week if available
     if not previous_df.empty:
         previous_filtered = previous_df[previous_df['State'].isin(southwest_states)].copy()
         
@@ -1447,12 +1397,10 @@ def create_southwest_weekly_comparison(weekly_data):
         comparison['Cases_last'] = comparison['Cases_last'].fillna(0).astype(int)
         comparison['Change_Value'] = comparison['Cases_current'] - comparison['Cases_last']
         
-        # Calculate percent change
         comparison['Change_Percent'] = (
             (comparison['Change_Value'] / comparison['Cases_last'].replace(0, 1)) * 100
         ).round(1)
         
-        # Create change display with arrows
         def format_change(row):
             if row['Cases_last'] == 0 and row['Cases_current'] == 0:
                 return "→ No change"
@@ -1468,14 +1416,12 @@ def create_southwest_weekly_comparison(weekly_data):
         comparison['Change'] = comparison.apply(format_change, axis=1)
         
     else:
-        # First run - no comparison available
         comparison = current_filtered[['State', 'Cases']].copy()
         comparison['Cases_current'] = comparison['Cases']
         comparison['Cases_last'] = 'N/A'
         comparison['Change'] = 'First week'
         comparison['Change_Value'] = 0
     
-    # Ensure all Southwest states are included
     for state in southwest_states:
         if state not in comparison['State'].values:
             new_row = pd.DataFrame({
@@ -1500,11 +1446,10 @@ def create_southwest_weekly_comparison(weekly_data):
         '<b>State Website</b>'
     ]
     
-    # Format website links - Plotly uses customdata for clickable links
+    # Format website links
     website_links = []
     for state in comparison['State']:
         if state in state_urls:
-            # Format: display text with link marker
             website_links.append(f'<a href="{state_urls[state]}">View Dashboard ↗</a>')
         else:
             website_links.append('')
@@ -1520,7 +1465,7 @@ def create_southwest_weekly_comparison(weekly_data):
     # Apply colors in order to each row
     fill_colors = []
     font_color_values = []
-    for col_idx in range(5):  # 5 columns
+    for col_idx in range(5):
         col_colors = []
         col_font_colors = []
         for row_idx in range(len(comparison)):
@@ -1529,36 +1474,36 @@ def create_southwest_weekly_comparison(weekly_data):
         fill_colors.append(col_colors)
         font_color_values.append(col_font_colors)
     
-    # Create Plotly table with clickable links enabled
+    # Create responsive Plotly table
     fig = go.Figure(data=[go.Table(
         columnwidth=[100, 100, 100, 100, 120],
         header=dict(
             values=header_values,
             fill_color=header_color,
             align=['left', 'center', 'center', 'center', 'center'],
-            font=dict(color='black', size=14, family='Arial'),
-            height=50
+            font=dict(color='black', size=12, family='Arial'),
+            height=40
         ),
         cells=dict(
             values=cell_values,
             fill_color=fill_colors,
             align=['left', 'center', 'center', 'center', 'center'],
-            font=dict(color=font_color_values, size=13, family='Arial'),
-            height=40,
+            font=dict(color=font_color_values, size=11, family='Arial'),
+            height=35,
             line=dict(color='white', width=1)
         )
     )])
     
-    # Update layout - enable clickable links
+    # Responsive layout
     last_refreshed = datetime.now().strftime('%B %d, %Y at %I:%M %p')
     
     fig.update_layout(
         title=None,
-        margin=dict(l=20, r=20, t=20, b=80),
-        paper_bgcolor='white',
-        font=dict(family='Arial', size=12),
         autosize=True,
-        # This is the key setting for clickable links
+        responsive=True,
+        margin=dict(l=10, r=10, t=20, b=70, pad=4),
+        paper_bgcolor='white',
+        font=dict(family='Arial', size=11),
         clickmode='event+select'
     )
     
@@ -1570,8 +1515,31 @@ def create_southwest_weekly_comparison(weekly_data):
         x=0.0, y=-0.15,
         xanchor="left", yanchor="top",
         showarrow=False,
-        font=dict(size=10, color='gray', family='Arial'),
+        font=dict(size=9, color='gray', family='Arial'),
         align="left"
     )
     
     return fig
+
+
+# Configuration helper for displaying charts
+def get_responsive_config():
+    """
+    Returns Plotly configuration for responsive charts.
+    Use this when displaying or saving charts: fig.show(config=get_responsive_config())
+    """
+    return {
+        'responsive': True,
+        'displayModeBar': True,
+        'displaylogo': False,
+        'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d'],
+        'toImageButtonOptions': {
+            'format': 'png',
+            'filename': 'chart',
+            'height': None,
+            'width': None,
+            'scale': 2
+        }
+    }
+
+
