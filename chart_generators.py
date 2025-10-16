@@ -1115,4 +1115,4 @@ def create_southwest_weekly_comparison(weekly_data):
         align="left"
     )
 
-    return fig
+    return fig 
