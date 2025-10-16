@@ -1,6 +1,7 @@
 """
 Chart Styles and Formatting Module
 Provides consistent styling across all visualizations
+RESPONSIVE VERSION - Updated for mobile and tablet compatibility
 """
 
 from datetime import datetime
@@ -24,27 +25,27 @@ COLORS = {
     'gray': 'gray'
 }
 
-# Hierarchical font sizing system
+# Responsive hierarchical font sizing system
 FONT_SIZES = {
-    'title': 20,           # Chart title
-    'axis_title': 16,      # Axis titles
-    'axis_tick': 14,       # Axis tick labels
-    'legend': 14,          # Legend text
-    'annotation': 12,      # Event annotations
-    'footer': 10           # Footer/metadata text
+    'title': 16,           # Chart title - reduced for mobile
+    'axis_title': 13,      # Axis titles - reduced for mobile
+    'axis_tick': 11,       # Axis tick labels - reduced for mobile
+    'legend': 11,          # Legend text - reduced for mobile
+    'annotation': 10,      # Event annotations - reduced for mobile
+    'footer': 9            # Footer/metadata text - reduced for mobile
 }
 
 # Font family
 FONT_FAMILY = "Arial"
 
-# Consistent spacing system
+# Responsive spacing system
 SPACING = {
-    'margin': {'l': 80, 'r': 80, 't': 100, 'b': 160},  # Standard margins
-    'margin_tight': {'l': 60, 'r': 40, 't': 80, 'b': 120},  # Tighter margins for mobile
-    'annotation_offset': -65,   # Consistent annotation positioning
-    'legend_y': 1.25,          # Legend positioned higher
-    'legend_y_tight': 1.2,     # Legend for tighter layouts
-    'footer_y': -0.28          # Footer positioning
+    'margin': {'l': 50, 'r': 30, 't': 60, 'b': 100},  # Responsive margins
+    'margin_tight': {'l': 40, 'r': 20, 't': 50, 'b': 80},  # Even tighter for very small screens
+    'annotation_offset': -50,   # Reduced annotation positioning
+    'legend_y': 1.15,          # Legend positioned for responsive layout
+    'legend_y_tight': 1.1,     # Legend for tighter layouts
+    'footer_y': -0.22          # Footer positioning for responsive layout
 }
 
 # Bivariate color matrix for choropleth maps
@@ -111,13 +112,13 @@ STATE_CENTROIDS = {
 
 def get_standard_layout(tight_margins=False):
     """
-    Get standard layout configuration
+    Get responsive standard layout configuration
     
     Args:
         tight_margins (bool): Use tighter margins for mobile/responsive design
         
     Returns:
-        dict: Layout configuration
+        dict: Layout configuration with responsive settings
     """
     margins = SPACING['margin_tight'] if tight_margins else SPACING['margin']
     legend_y = SPACING['legend_y_tight'] if tight_margins else SPACING['legend_y']
@@ -125,13 +126,14 @@ def get_standard_layout(tight_margins=False):
     return {
         'plot_bgcolor': 'white',
         'paper_bgcolor': 'white',
+        'autosize': True,  # Critical for responsiveness
+        'responsive': True,  # Critical for responsiveness
         'font': {
             'family': FONT_FAMILY, 
             'size': FONT_SIZES['axis_tick'], 
             'color': 'black'
         },
-        'margin': margins,
-        'autosize': True,
+        'margin': {**margins, 'pad': 4},  # Add padding for responsive layout
         'legend': {
             'orientation': "h",
             'yanchor': "top",
@@ -148,7 +150,7 @@ def get_standard_layout(tight_margins=False):
 
 def get_axis_config(title, is_x_axis=True, show_grid=False, show_line=False):
     """
-    Get standardized axis configuration
+    Get responsive standardized axis configuration
     
     Args:
         title (str): Axis title
@@ -157,7 +159,7 @@ def get_axis_config(title, is_x_axis=True, show_grid=False, show_line=False):
         show_line (bool): Whether to show axis line
         
     Returns:
-        dict: Axis configuration
+        dict: Axis configuration with responsive settings
     """
     config = {
         'title': {
@@ -175,14 +177,15 @@ def get_axis_config(title, is_x_axis=True, show_grid=False, show_line=False):
         },
         'showgrid': show_grid,
         'linecolor': 'black' if show_line else 'rgba(0,0,0,0)',
-        'linewidth': 2 if show_line else 0
+        'linewidth': 2 if show_line else 0,
+        'automargin': True  # Critical for responsive layout
     }
     
     return config
 
 def add_footer_annotation(fig, custom_note=None):
     """
-    Add standard footer annotation with timestamp
+    Add responsive standard footer annotation with timestamp
     
     Args:
         fig: Plotly figure object
@@ -208,13 +211,13 @@ def add_footer_annotation(fig, custom_note=None):
         align="left"
     )
 
-def wrap_text(text, width=25):
+def wrap_text(text, width=20):  # Reduced from 25 for mobile
     """
-    Text wrapping for annotations
+    Text wrapping for annotations - optimized for responsive display
     
     Args:
         text (str): Text to wrap
-        width (int): Maximum line width
+        width (int): Maximum line width (reduced for mobile)
         
     Returns:
         str: Wrapped text with HTML line breaks
@@ -330,3 +333,25 @@ def format_number(value, format_type='comma'):
         return f"{value:.1f}%"
     else:
         return str(value)
+
+def get_responsive_config():
+    """
+    Get Plotly configuration for responsive charts
+    Use when displaying or saving figures
+    
+    Returns:
+        dict: Plotly config with responsive settings
+    """
+    return {
+        'responsive': True,
+        'displayModeBar': True,
+        'displaylogo': False,
+        'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d'],
+        'toImageButtonOptions': {
+            'format': 'png',
+            'filename': 'chart',
+            'height': None,
+            'width': None,
+            'scale': 2
+        }
+    }
