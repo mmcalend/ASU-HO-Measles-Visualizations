@@ -20,45 +20,136 @@ logging.basicConfig(
 
 def create_html_page(fig, filename):
     """
-    Create a simple HTML page with just the visualization for iframe embedding
+    Create a mobile-responsive HTML page for iframe embedding
     
     Args:
         fig: Plotly figure object
         filename (str): Output filename
     """
-    # Generate the HTML with minimal styling for iframe embedding
+    # Configure plotly for responsive display
+    config = {
+        'displayModeBar': False,
+        'responsive': True,
+        'displaylogo': False
+    }
+    
+    # Generate the HTML with responsive configuration
     html_content = fig.to_html(
         include_plotlyjs='cdn',
         div_id='chart',
-        config={'displayModeBar': False, 'responsive': True}
+        config=config,
+        include_mathjax=False
     )
     
-    # Add minimal CSS for iframe compatibility
-    full_html = f"""
-<!DOCTYPE html>
+    # Enhanced HTML with mobile-first responsive design
+    full_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>Measles Data Visualization</title>
     <style>
-        body {{
+        * {{
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }}
+        
+        html, body {{
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
             background-color: white;
             font-family: Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }}
+        
         #chart {{
             width: 100%;
-            height: 100vh;
+            height: 100%;
+            position: relative;
+        }}
+        
+        /* Ensure plotly responsive container works */
+        .plotly-graph-div {{
+            width: 100% !important;
+            height: 100% !important;
+        }}
+        
+        /* Mobile-specific optimizations */
+        @media screen and (max-width: 768px) {{
+            body {{
+                font-size: 14px;
+            }}
+            
+            /* Ensure touch targets are large enough */
+            .plotly .modebar {{
+                display: none !important;
+            }}
+            
+            /* Prevent text selection on double-tap */
+            .plotly {{
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                user-select: none;
+            }}
+        }}
+        
+        /* Very small screens */
+        @media screen and (max-width: 480px) {{
+            body {{
+                font-size: 12px;
+            }}
+        }}
+        
+        /* Loading state */
+        #chart:empty::before {{
+            content: "Loading...";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #666;
+            font-size: 16px;
         }}
     </style>
 </head>
 <body>
     {html_content}
+    
+    <script>
+        // Ensure responsive behavior on window resize
+        window.addEventListener('resize', function() {{
+            var gd = document.getElementById('chart');
+            if (gd && gd.layout) {{
+                Plotly.Plots.resize(gd);
+            }}
+        }});
+        
+        // Handle orientation changes on mobile
+        window.addEventListener('orientationchange', function() {{
+            setTimeout(function() {{
+                var gd = document.getElementById('chart');
+                if (gd && gd.layout) {{
+                    Plotly.Plots.resize(gd);
+                }}
+            }}, 200);
+        }});
+        
+        // Ensure chart is properly sized on load
+        window.addEventListener('load', function() {{
+            setTimeout(function() {{
+                var gd = document.getElementById('chart');
+                if (gd && gd.layout) {{
+                    Plotly.Plots.resize(gd);
+                }}
+            }}, 100);
+        }});
+    </script>
 </body>
-</html>
-"""
+</html>"""
     
     output_dir = Path('docs')
     output_dir.mkdir(exist_ok=True)
@@ -66,8 +157,7 @@ def create_html_page(fig, filename):
     with open(output_dir / filename, 'w', encoding='utf-8') as f:
         f.write(full_html)
     
-    logging.info(f"Created {filename}")
-
+    logging.info(f"Created responsive {filename}")
 def check_existing_visualizations():
     """
     Check if visualization files already exist in docs directory
