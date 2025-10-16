@@ -1507,7 +1507,7 @@ def create_southwest_weekly_comparison(weekly_data):
         clickmode='event+select'
     )
     
-    # Add footer note
+    # Add footer 
     fig.add_annotation(
         text=(f"<b>Last refreshed:</b> {last_refreshed}<br>"
               "<i>Note: These numbers are according to the CDC website. For the most real-time updates, check the state's dashboards.</i>"),
