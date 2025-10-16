@@ -20,20 +20,25 @@ logging.basicConfig(
 
 def create_html_page(fig, filename):
     """
-    Create a mobile-responsive HTML page for iframe embedding
+    Create a highly responsive HTML page for iframe embedding
+    Uses CSS and JavaScript to make existing graphs responsive without changing them
     
     Args:
         fig: Plotly figure object
         filename (str): Output filename
     """
+    from pathlib import Path
+    import logging
+    
     # Configure plotly for responsive display
     config = {
         'displayModeBar': False,
         'responsive': True,
-        'displaylogo': False
+        'displaylogo': False,
+        'autosizable': True
     }
     
-    # Generate the HTML with responsive configuration
+    # Generate the HTML
     html_content = fig.to_html(
         include_plotlyjs='cdn',
         div_id='chart',
@@ -41,13 +46,14 @@ def create_html_page(fig, filename):
         include_mathjax=False
     )
     
-    # Enhanced HTML with mobile-first responsive design
+    # Enhanced responsive HTML wrapper
     full_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Measles Data Visualization</title>
     <style>
         * {{
@@ -56,57 +62,143 @@ def create_html_page(fig, filename):
             box-sizing: border-box;
         }}
         
-        html, body {{
+        html {{
             width: 100%;
             height: 100%;
             overflow: hidden;
+        }}
+        
+        body {{
+            width: 100%;
+            height: 100%;
+            overflow: auto;
             background-color: white;
             font-family: Arial, sans-serif;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            -webkit-overflow-scrolling: touch;
         }}
         
         #chart {{
             width: 100%;
-            height: 100%;
+            min-height: 100vh;
             position: relative;
         }}
         
-        /* Ensure plotly responsive container works */
+        /* Force Plotly to be responsive */
         .plotly-graph-div {{
+            width: 100% !important;
+            height: auto !important;
+            min-height: 400px;
+        }}
+        
+        .js-plotly-plot {{
+            width: 100% !important;
+        }}
+        
+        /* Make SVG responsive */
+        .plotly .svg-container {{
             width: 100% !important;
             height: 100% !important;
         }}
         
-        /* Mobile-specific optimizations */
+        .plotly .main-svg {{
+            width: 100% !important;
+            height: 100% !important;
+        }}
+        
+        /* Scale down text on mobile */
         @media screen and (max-width: 768px) {{
-            body {{
-                font-size: 14px;
+            .plotly text {{
+                font-size: 10px !important;
             }}
             
-            /* Ensure touch targets are large enough */
-            .plotly .modebar {{
+            .plotly .xtick text,
+            .plotly .ytick text {{
+                font-size: 9px !important;
+            }}
+            
+            .plotly .legendtext {{
+                font-size: 10px !important;
+            }}
+            
+            .plotly .annotation-text {{
+                font-size: 9px !important;
+            }}
+            
+            /* Hide mode bar on mobile */
+            .modebar {{
                 display: none !important;
             }}
             
-            /* Prevent text selection on double-tap */
-            .plotly {{
-                -webkit-touch-callout: none;
-                -webkit-user-select: none;
-                user-select: none;
+            /* Adjust legend spacing */
+            .legend {{
+                transform: scale(0.9);
+                transform-origin: left top;
+            }}
+            
+            .plotly-graph-div {{
+                min-height: 350px;
             }}
         }}
         
-        /* Very small screens */
+        /* Extra small screens */
         @media screen and (max-width: 480px) {{
-            body {{
-                font-size: 12px;
+            .plotly text {{
+                font-size: 8px !important;
+            }}
+            
+            .plotly .xtick text,
+            .plotly .ytick text {{
+                font-size: 7px !important;
+            }}
+            
+            .plotly .legendtext {{
+                font-size: 8px !important;
+            }}
+            
+            .plotly .annotation-text {{
+                font-size: 7px !important;
+                max-width: 100px;
+                word-wrap: break-word;
+            }}
+            
+            /* Scale down legend even more */
+            .legend {{
+                transform: scale(0.8);
+                transform-origin: left top;
+            }}
+            
+            .plotly-graph-div {{
+                min-height: 300px;
             }}
         }}
         
-        /* Loading state */
+        /* Landscape mobile */
+        @media screen and (max-width: 896px) and (orientation: landscape) {{
+            #chart {{
+                min-height: 100vh;
+            }}
+            
+            .plotly-graph-div {{
+                min-height: 90vh;
+            }}
+        }}
+        
+        /* Tablet adjustments */
+        @media screen and (min-width: 769px) and (max-width: 1024px) {{
+            .plotly text {{
+                font-size: 11px !important;
+            }}
+            
+            .plotly .legendtext {{
+                font-size: 11px !important;
+            }}
+        }}
+        
+        /* Loading indicator */
         #chart:empty::before {{
-            content: "Loading...";
+            content: "Loading visualization...";
             position: absolute;
             top: 50%;
             left: 50%;
@@ -114,39 +206,129 @@ def create_html_page(fig, filename):
             color: #666;
             font-size: 16px;
         }}
+        
+        /* Prevent text selection issues on mobile */
+        .plotly {{
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+        }}
+        
+        /* Improve touch interaction */
+        .plotly .nsewdrag {{
+            cursor: pointer !important;
+        }}
     </style>
 </head>
 <body>
     {html_content}
     
     <script>
-        // Ensure responsive behavior on window resize
-        window.addEventListener('resize', function() {{
+        // Enhanced responsive behavior
+        (function() {{
+            var resizeTimer;
             var gd = document.getElementById('chart');
-            if (gd && gd.layout) {{
-                Plotly.Plots.resize(gd);
+            
+            // Function to properly resize chart
+            function resizeChart() {{
+                if (gd && gd.layout) {{
+                    try {{
+                        // Get current dimensions
+                        var width = window.innerWidth;
+                        var height = Math.max(window.innerHeight, 400);
+                        
+                        // Update layout for current screen size
+                        var update = {{}};
+                        
+                        // Adjust margins for mobile
+                        if (width < 768) {{
+                            update.margin = {{
+                                l: 40,
+                                r: 40,
+                                t: 60,
+                                b: 80
+                            }};
+                            
+                            // Adjust font sizes
+                            update.font = {{
+                                size: 10
+                            }};
+                            
+                            if (gd.layout.xaxis) {{
+                                update['xaxis.title.font.size'] = 11;
+                                update['xaxis.tickfont.size'] = 9;
+                            }}
+                            
+                            if (gd.layout.yaxis) {{
+                                update['yaxis.title.font.size'] = 11;
+                                update['yaxis.tickfont.size'] = 9;
+                            }}
+                            
+                            // Adjust legend
+                            if (gd.layout.legend) {{
+                                update['legend.font.size'] = 9;
+                            }}
+                        }} else if (width < 480) {{
+                            update.margin = {{
+                                l: 30,
+                                r: 30,
+                                t: 50,
+                                b: 70
+                            }};
+                            
+                            update.font = {{
+                                size: 8
+                            }};
+                        }}
+                        
+                        // Apply updates
+                        Plotly.relayout(gd, update);
+                        Plotly.Plots.resize(gd);
+                    }} catch (e) {{
+                        console.error('Error resizing chart:', e);
+                    }}
+                }}
             }}
-        }});
-        
-        // Handle orientation changes on mobile
-        window.addEventListener('orientationchange', function() {{
-            setTimeout(function() {{
-                var gd = document.getElementById('chart');
-                if (gd && gd.layout) {{
-                    Plotly.Plots.resize(gd);
+            
+            // Debounced resize handler
+            function handleResize() {{
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(resizeChart, 250);
+            }}
+            
+            // Listen for resize events
+            window.addEventListener('resize', handleResize);
+            
+            // Listen for orientation changes
+            window.addEventListener('orientationchange', function() {{
+                setTimeout(resizeChart, 300);
+            }});
+            
+            // Initial resize on load
+            window.addEventListener('load', function() {{
+                setTimeout(resizeChart, 100);
+            }});
+            
+            // Watch for when Plotly finishes rendering
+            if (gd) {{
+                gd.on('plotly_afterplot', function() {{
+                    setTimeout(resizeChart, 100);
+                }});
+            }}
+            
+            // Handle visibility changes (when switching tabs)
+            document.addEventListener('visibilitychange', function() {{
+                if (!document.hidden) {{
+                    setTimeout(resizeChart, 100);
                 }}
-            }}, 200);
-        }});
-        
-        // Ensure chart is properly sized on load
-        window.addEventListener('load', function() {{
-            setTimeout(function() {{
-                var gd = document.getElementById('chart');
-                if (gd && gd.layout) {{
-                    Plotly.Plots.resize(gd);
+            }});
+            
+            // For iframes: listen for parent window messages
+            window.addEventListener('message', function(event) {{
+                if (event.data === 'resize') {{
+                    resizeChart();
                 }}
-            }}, 100);
-        }});
+            }});
+        }})();
     </script>
 </body>
 </html>"""
@@ -158,6 +340,7 @@ def create_html_page(fig, filename):
         f.write(full_html)
     
     logging.info(f"Created responsive {filename}")
+    
 def check_existing_visualizations():
     """
     Check if visualization files already exist in docs directory
