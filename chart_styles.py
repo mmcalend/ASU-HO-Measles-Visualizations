@@ -1,7 +1,7 @@
 """
 Chart Styles and Formatting Module
 Provides consistent styling across all visualizations
-RESPONSIVE VERSION - Updated for mobile and tablet compatibility
+MOBILE-OPTIMIZED VERSION - Fixes legend/key overlap issues
 """
 
 from datetime import datetime
@@ -25,27 +25,26 @@ COLORS = {
     'gray': 'gray'
 }
 
-# Responsive hierarchical font sizing system
+# Mobile-optimized font sizing system (reduced from original)
 FONT_SIZES = {
-    'title': 16,           # Chart title - reduced for mobile
-    'axis_title': 13,      # Axis titles - reduced for mobile
-    'axis_tick': 11,       # Axis tick labels - reduced for mobile
-    'legend': 11,          # Legend text - reduced for mobile
-    'annotation': 10,      # Event annotations - reduced for mobile
-    'footer': 9            # Footer/metadata text - reduced for mobile
+    'title': 14,           # Reduced from 16
+    'axis_title': 12,      # Reduced from 13
+    'axis_tick': 10,       # Reduced from 11
+    'legend': 10,          # Reduced from 11
+    'annotation': 9,       # Reduced from 10
+    'footer': 8            # Reduced from 9
 }
 
 # Font family
-FONT_FAMILY = "Arial"
+FONT_FAMILY = "Arial, sans-serif"
 
-# Responsive spacing system
+# Mobile-first spacing system (more top margin for legends)
 SPACING = {
-    'margin': {'l': 50, 'r': 30, 't': 60, 'b': 100},  # Responsive margins
-    'margin_tight': {'l': 40, 'r': 20, 't': 50, 'b': 80},  # Even tighter for very small screens
-    'annotation_offset': -50,   # Reduced annotation positioning
-    'legend_y': 1.15,          # Legend positioned for responsive layout
-    'legend_y_tight': 1.1,     # Legend for tighter layouts
-    'footer_y': -0.22          # Footer positioning for responsive layout
+    'margin': {'l': 40, 'r': 40, 't': 100, 'b': 80},  # More top space
+    'margin_map': {'l': 5, 'r': 5, 't': 120, 'b': 50},  # Even more for maps
+    'annotation_offset': -40,   # Reduced from -50
+    'legend_y': 1.02,          # Changed from 1.15 - legend just above chart
+    'footer_y': -0.18          # Changed from -0.22
 }
 
 # Bivariate color matrix for choropleth maps
@@ -112,7 +111,7 @@ STATE_CENTROIDS = {
 
 def get_standard_layout(tight_margins=False):
     """
-    Get responsive standard layout configuration
+    Get mobile-optimized standard layout configuration
     
     Args:
         tight_margins (bool): Use tighter margins for mobile/responsive design
@@ -120,37 +119,37 @@ def get_standard_layout(tight_margins=False):
     Returns:
         dict: Layout configuration with responsive settings
     """
-    margins = SPACING['margin_tight'] if tight_margins else SPACING['margin']
-    legend_y = SPACING['legend_y_tight'] if tight_margins else SPACING['legend_y']
+    margins = SPACING['margin'].copy()
     
     return {
         'plot_bgcolor': 'white',
         'paper_bgcolor': 'white',
         'autosize': True,  # Critical for responsiveness
-        'responsive': True,  # Critical for responsiveness
         'font': {
             'family': FONT_FAMILY, 
             'size': FONT_SIZES['axis_tick'], 
             'color': 'black'
         },
-        'margin': {**margins, 'pad': 4},  # Add padding for responsive layout
+        'margin': margins,
         'legend': {
             'orientation': "h",
-            'yanchor': "top",
-            'y': legend_y,
+            'yanchor': "bottom",  # Changed from "top"
+            'y': SPACING['legend_y'],  # Legend just above chart
             'xanchor': "left",
             'x': 0,
             'font': {
                 'size': FONT_SIZES['legend'],
                 'color': 'black',
                 'family': FONT_FAMILY
-            }
+            },
+            'bgcolor': 'rgba(255, 255, 255, 0.9)',  # Semi-transparent background
+            'borderwidth': 0
         }
     }
 
 def get_axis_config(title, is_x_axis=True, show_grid=False, show_line=False):
     """
-    Get responsive standardized axis configuration
+    Get mobile-optimized standardized axis configuration
     
     Args:
         title (str): Axis title
@@ -185,7 +184,7 @@ def get_axis_config(title, is_x_axis=True, show_grid=False, show_line=False):
 
 def add_footer_annotation(fig, custom_note=None):
     """
-    Add responsive standard footer annotation with timestamp
+    Add mobile-optimized standard footer annotation with timestamp
     
     Args:
         fig: Plotly figure object
@@ -336,7 +335,7 @@ def format_number(value, format_type='comma'):
 
 def get_responsive_config():
     """
-    Get Plotly configuration for responsive charts
+    Get Plotly configuration for mobile-optimized responsive charts
     Use when displaying or saving figures
     
     Returns:
@@ -344,14 +343,16 @@ def get_responsive_config():
     """
     return {
         'responsive': True,
-        'displayModeBar': True,
+        'displayModeBar': 'hover',  # Only show on hover to save space
         'displaylogo': False,
-        'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d'],
+        'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d', 'zoomIn2d', 'zoomOut2d'],
         'toImageButtonOptions': {
             'format': 'png',
             'filename': 'chart',
             'height': None,
             'width': None,
             'scale': 2
-        }
+        },
+        'scrollZoom': False,  # Disable scroll zoom on mobile
+        'doubleClick': 'reset'
     }
