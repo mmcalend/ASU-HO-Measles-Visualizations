@@ -8,6 +8,7 @@ def create_measles_timeline(timeline_data):
     """
     Creates a responsive timeline chart showing measles cases over time with key vaccine milestones.
     Uses square root scaling to display both historical peaks and recent trends.
+    MOBILE-OPTIMIZED: Fixed legend positioning and font sizes
 
     Args:
         timeline_data: DataFrame with columns 'Year', 'Cases', optional 'Highlight'
@@ -31,23 +32,23 @@ def create_measles_timeline(timeline_data):
         'text_muted': 'gray'
     }
 
-    # Responsive font sizing system
+    # Mobile-optimized font sizing system
     FONT_SIZES = {
-        'title': 16,
-        'axis_title': 13,
-        'axis_tick': 11,
-        'legend': 11,
-        'annotation': 10,
-        'footer': 9
+        'title': 14,
+        'axis_title': 12,
+        'axis_tick': 10,
+        'legend': 10,
+        'annotation': 9,
+        'footer': 8
     }
 
     FONT_FAMILY = "Arial"
 
-    # Responsive spacing system
+    # Mobile-optimized spacing system
     SPACING = {
-        'margin': {'l': 50, 'r': 30, 't': 60, 'b': 100},
-        'annotation_offset': -50,
-        'legend_y': 1.15,
+        'margin': {'l': 50, 'r': 30, 't': 100, 'b': 100},
+        'annotation_offset': -40,
+        'legend_y': 1.02,
         'footer_y': -0.22
     }
 
@@ -212,7 +213,7 @@ def create_measles_timeline(timeline_data):
 
         fig.update_layout(annotations=create_annotations(highlight_data))
 
-    # Responsive layout configuration
+    # Mobile-optimized layout configuration
     last_refreshed = datetime.now().strftime("%B %d, %Y at %I:%M %p")
 
     fig.update_layout(
@@ -220,10 +221,9 @@ def create_measles_timeline(timeline_data):
         plot_bgcolor='white',
         paper_bgcolor='white',
         autosize=True,
-        responsive=True,
         legend=dict(
             orientation="h",
-            yanchor="top",
+            yanchor="bottom",
             y=SPACING['legend_y'],
             xanchor="left",
             x=0,
@@ -231,15 +231,15 @@ def create_measles_timeline(timeline_data):
                 size=FONT_SIZES['legend'],
                 color='black',
                 family=FONT_FAMILY
-            )
+            ),
+            bgcolor='rgba(255, 255, 255, 0.9)'
         ),
         font=dict(family=FONT_FAMILY, size=FONT_SIZES['axis_tick'], color='black'),
         margin=dict(l=SPACING['margin']['l'], r=SPACING['margin']['r'], 
-                   t=SPACING['margin']['t'], b=SPACING['margin']['b'], pad=4),
-        showlegend=True
+                   t=SPACING['margin']['t'], b=SPACING['margin']['b'], pad=4)
     )
 
-    # Responsive axes configuration
+    # Mobile-optimized axes configuration
     fig.update_xaxes(
         title=dict(
             text="<b>Year</b>",
@@ -298,6 +298,7 @@ def create_recent_trends(usmeasles_data, mmr_data):
     """
     Creates a responsive dual-axis chart showing recent measles cases (bars) and MMR vaccination
     coverage (line) with herd immunity threshold.
+    MOBILE-OPTIMIZED: Fixed legend positioning and font sizes
 
     Args:
         usmeasles_data: DataFrame with columns 'year', 'cases'
@@ -311,36 +312,26 @@ def create_recent_trends(usmeasles_data, mmr_data):
 
     # Enhanced color palette
     colors = {
-        'deep_red': '#a50026',
-        'red': '#d73027',
-        'orange_red': '#f46d43',
-        'orange': '#fdae61',
-        'light_orange': '#fee090',
-        'pale_yellow': '#ffffbf',
-        'pale_blue': '#e0f3f8',
-        'light_blue': '#abd9e9',
-        'medium_blue': '#74add1',
-        'blue': '#4575b4',
-        'deep_blue': '#313695'
+        'deep_blue': '#313695',
+        'orange': '#fdae61'
     }
 
-    # Responsive font sizing system
+    # Mobile-optimized font sizing system
     FONT_SIZES = {
-        'title': 16,
-        'axis_title': 13,
-        'axis_tick': 11,
-        'legend': 11,
-        'annotation': 10,
-        'footer': 9
+        'axis_title': 12,
+        'axis_tick': 10,
+        'legend': 10,
+        'annotation': 9,
+        'footer': 8
     }
 
     FONT_FAMILY = "Arial"
 
-    # Responsive spacing system
+    # Mobile-optimized spacing system
     SPACING = {
-        'margin': {'l': 50, 'r': 60, 't': 60, 'b': 100},
-        'annotation_offset': -50,
-        'legend_y': 1.15,
+        'margin': {'l': 50, 'r': 60, 't': 100, 'b': 100},
+        'annotation_offset': -40,
+        'legend_y': 1.02,
         'footer_y': -0.22
     }
 
@@ -432,16 +423,15 @@ def create_recent_trends(usmeasles_data, mmr_data):
                 showlegend=True
             ))
 
-    # Responsive layout configuration
+    # Mobile-optimized layout configuration
     fig.update_layout(
         title=None,
         plot_bgcolor='white',
         paper_bgcolor='white',
         autosize=True,
-        responsive=True,
         legend=dict(
             orientation="h",
-            yanchor="top",
+            yanchor="bottom",
             y=SPACING['legend_y'],
             xanchor="left",
             x=0,
@@ -449,7 +439,8 @@ def create_recent_trends(usmeasles_data, mmr_data):
                 size=FONT_SIZES['legend'],
                 color='black',
                 family=FONT_FAMILY
-            )
+            ),
+            bgcolor='rgba(255, 255, 255, 0.9)'
         ),
         font=dict(family=FONT_FAMILY, size=FONT_SIZES['axis_tick'], color='black'),
         margin=dict(l=SPACING['margin']['l'], 
@@ -459,7 +450,7 @@ def create_recent_trends(usmeasles_data, mmr_data):
                    pad=4)
     )
 
-    # Responsive axes configuration
+    # Mobile-optimized axes configuration
     # X-axis - years
     fig.update_xaxes(
         title=dict(
@@ -570,6 +561,7 @@ def create_rnaught_comparison():
     """
     Creates a responsive comparative visualization of basic reproduction numbers (R₀) across diseases.
     Shows how many people each infected person could potentially infect using a dot plot.
+    MOBILE-OPTIMIZED: Fixed legend positioning and font sizes
 
     Returns:
         plotly Figure object
@@ -581,35 +573,24 @@ def create_rnaught_comparison():
 
     # Enhanced color palette
     colors = {
-        'deep_red': '#a50026',
         'red': '#d73027',
-        'orange_red': '#f46d43',
         'orange': '#fdae61',
-        'light_orange': '#fee090',
-        'pale_yellow': '#ffffbf',
-        'pale_blue': '#e0f3f8',
-        'light_blue': '#abd9e9',
-        'medium_blue': '#74add1',
-        'blue': '#4575b4',
-        'deep_blue': '#313695'
+        'not_infected': '#d3d3d3'
     }
 
-    # Responsive font sizing system
+    # Mobile-optimized font sizing system
     FONT_SIZES = {
-        'title': 16,
-        'axis_title': 13,
-        'axis_tick': 11,
-        'legend': 11,
-        'annotation': 10,
-        'footer': 9
+        'legend': 10,
+        'annotation': 9,
+        'footer': 8
     }
 
     FONT_FAMILY = "Arial"
 
-    # Responsive spacing system
+    # Mobile-optimized spacing system
     SPACING = {
-        'margin': {'l': 50, 'r': 30, 't': 70, 'b': 100},
-        'legend_y': 1.12,
+        'margin': {'l': 50, 'r': 30, 't': 100, 'b': 100},
+        'legend_y': 1.05,
         'footer_y': -0.22
     }
 
@@ -633,7 +614,7 @@ def create_rnaught_comparison():
 
     # Color assignments
     INFECTED_COLOR = colors['red']
-    NOT_INFECTED_COLOR = '#d3d3d3'
+    NOT_INFECTED_COLOR = colors['not_infected']
     INDEX_CASE_COLOR = colors['orange']
 
     # Generate visualization for each disease
@@ -718,14 +699,13 @@ def create_rnaught_comparison():
     y_min = Y_POSITION - CIRCLE_RADIUS - 2.5
     y_max = Y_POSITION + CIRCLE_RADIUS + 1.0
 
-    # Responsive layout configuration
+    # Mobile-optimized layout configuration
     fig.update_layout(
         title=None,
         plot_bgcolor='white',
         paper_bgcolor='white',
         autosize=True,
-        responsive=True,
-        font=dict(family=FONT_FAMILY, size=FONT_SIZES['axis_tick'], color='black'),
+        font=dict(family=FONT_FAMILY, size=FONT_SIZES['annotation'], color='black'),
         margin=dict(l=SPACING['margin']['l'], r=SPACING['margin']['r'], 
                    t=SPACING['margin']['t'], b=SPACING['margin']['b'], pad=4),
         xaxis=dict(
@@ -743,10 +723,10 @@ def create_rnaught_comparison():
 
     # Add legend explanation
     fig.add_annotation(
-        text='Each circle shows 20 people. The orange <span style="color:#fdae61">●</span> dot is the first infected person. Red <span style="color:#d73027">●</span> dots show potential infections (R₀). Grey <span style="color:#d3d3d3">●</span> dots are not infected people.',
+        text='Each circle shows 20 people. Orange ● = infected person. Red ● = potential infections. Grey ● = not infected.',
         xref="paper", yref="paper",
         x=0.0, y=SPACING['legend_y'],
-        xanchor="left", yanchor="top",
+        xanchor="left", yanchor="bottom",
         showarrow=False,
         font=dict(size=FONT_SIZES['legend'], color="black", family=FONT_FAMILY),
         align="left"
@@ -773,6 +753,7 @@ def create_rnaught_comparison():
 def create_bivariate_choropleth(usmap_data):
     """
     Creates a responsive bivariate choropleth map showing both MMR coverage and measles case rates.
+    MOBILE-OPTIMIZED: Fixed legend size and positioning for small screens
     """
     import plotly.graph_objects as go
     import pandas as pd
@@ -962,7 +943,7 @@ def create_bivariate_choropleth(usmap_data):
                     showlegend=False
                 ))
 
-    # Responsive layout with full screen positioning
+    # Mobile-optimized layout with full screen positioning
     fig.update_layout(
         geo=dict(
             scope='usa',
@@ -974,16 +955,15 @@ def create_bivariate_choropleth(usmap_data):
         plot_bgcolor='white',
         paper_bgcolor='white',
         autosize=True,
-        responsive=True,
-        font=dict(family='Arial, sans-serif', size=10),
-        margin=dict(l=0, r=0, t=0, b=0, pad=0)
+        font=dict(family='Arial, sans-serif', size=9),
+        margin=dict(l=0, r=0, t=80, b=40, pad=0)
     )
 
-    # Create 3x3 bivariate legend
-    legend_x = 0.03
-    legend_y = 0.95
-    cell_size = 0.032
-    spacing = 0.005
+    # Create 3x3 bivariate legend - MOBILE OPTIMIZED
+    legend_x = 0.02
+    legend_y = 0.97
+    cell_size = 0.022
+    spacing = 0.003
 
     # Add 3x3 legend grid
     for i in range(3):
@@ -992,9 +972,9 @@ def create_bivariate_choropleth(usmap_data):
                 type="rect",
                 xref="paper", yref="paper",
                 x0=legend_x + j * (cell_size + spacing),
-                y0=legend_y - (i + 1) * (cell_size + spacing) - 0.025,
+                y0=legend_y - (i + 1) * (cell_size + spacing),
                 x1=legend_x + j * (cell_size + spacing) + cell_size,
-                y1=legend_y - i * (cell_size + spacing) - 0.025,
+                y1=legend_y - i * (cell_size + spacing),
                 fillcolor=bivariate_colors[i][j],
                 line=dict(color="white", width=1)
             )
@@ -1004,9 +984,9 @@ def create_bivariate_choropleth(usmap_data):
         type="rect",
         xref="paper", yref="paper",
         x0=legend_x,
-        y0=legend_y - 4.0 * (cell_size + spacing) - 0.025,
+        y0=legend_y - 4.0 * (cell_size + spacing),
         x1=legend_x + cell_size,
-        y1=legend_y - 3.0 * (cell_size + spacing) - 0.025,
+        y1=legend_y - 3.0 * (cell_size + spacing),
         fillcolor=missing_color,
         line=dict(color="white", width=1)
     )
@@ -1015,9 +995,9 @@ def create_bivariate_choropleth(usmap_data):
         text="Missing Data",
         xref="paper", yref="paper",
         x=legend_x + cell_size + spacing,
-        y=legend_y - 3.5 * (cell_size + spacing) - 0.025,
+        y=legend_y - 3.5 * (cell_size + spacing),
         showarrow=False,
-        font=dict(size=12, color='black'),
+        font=dict(size=9, color='black'),
         xanchor="left", yanchor="middle"
     )
 
@@ -1026,9 +1006,9 @@ def create_bivariate_choropleth(usmap_data):
         text="← MMR Vaccine Coverage →",
         xref="paper", yref="paper",
         x=legend_x + 1.5 * (cell_size + spacing),
-        y=legend_y - 0.005,
+        y=legend_y + 0.005,
         showarrow=False,
-        font=dict(size=12, color='black', family='Arial'),
+        font=dict(size=9, color='black', family='Arial'),
         xanchor="center", 
         yanchor="bottom"
     )
@@ -1036,10 +1016,10 @@ def create_bivariate_choropleth(usmap_data):
     fig.add_annotation(
         text="← Case Rate →",
         xref="paper", yref="paper",
-        x=legend_x - 0.013,
-        y=legend_y - 1.5 * (cell_size + spacing) - 0.02,
+        x=legend_x - 0.008,
+        y=legend_y - 1.5 * (cell_size + spacing),
         showarrow=False,
-        font=dict(size=12, color='black', family='Arial'),
+        font=dict(size=9, color='black', family='Arial'),
         xanchor="center", 
         yanchor="middle",
         textangle=90
@@ -1054,7 +1034,7 @@ def create_bivariate_choropleth(usmap_data):
         luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
         return 'black' if luminance > 0.5 else 'white'
 
-    # Add state abbreviation labels - responsive sizing
+    # Add state abbreviation labels - mobile optimized sizing
     black_text_states = []
     white_text_states = []
 
@@ -1084,7 +1064,7 @@ def create_bivariate_choropleth(usmap_data):
             lat=[s['lat'] for s in black_text_states],
             text=[s['text'] for s in black_text_states],
             mode='text',
-            textfont=dict(size=9, color='black', family='Arial'),
+            textfont=dict(size=8, color='black', family='Arial'),
             showlegend=False,
             hoverinfo='skip'
         ))
@@ -1096,7 +1076,7 @@ def create_bivariate_choropleth(usmap_data):
             lat=[s['lat'] for s in white_text_states],
             text=[s['text'] for s in white_text_states],
             mode='text',
-            textfont=dict(size=9, color='white', family='Arial'),
+            textfont=dict(size=8, color='white', family='Arial'),
             showlegend=False,
             hoverinfo='skip'
         ))
@@ -1108,7 +1088,7 @@ def create_bivariate_choropleth(usmap_data):
         xref="paper", yref="paper",
         x=0.02, y=0.02,
         showarrow=False,
-        font=dict(size=9, color='gray'),
+        font=dict(size=8, color='gray'),
         xanchor="left", yanchor="bottom",
         align="left"
     )
@@ -1118,6 +1098,7 @@ def create_bivariate_choropleth(usmap_data):
 def create_lives_saved_chart(vaccine_impact_data):
     """
     Create responsive bar chart visualization of estimated lives saved by vaccination programs.
+    MOBILE-OPTIMIZED: Fixed legend positioning and sizing
     """
     import plotly.graph_objects as go
     import pandas as pd
@@ -1194,23 +1175,20 @@ def create_lives_saved_chart(vaccine_impact_data):
     df['color'] = df['bin_index'].map(lambda x: bin_colors[int(x)] if pd.notna(x) and int(x) < len(bin_colors) else bin_colors[0])
     df['bin_label'] = df['bin_index'].map(lambda x: bin_labels[int(x)] if pd.notna(x) and int(x) < len(bin_labels) else bin_labels[0])
 
-    # Responsive font sizing
+    # Mobile-optimized font sizing
     FONT_SIZES = {
-        'title': 16,
-        'axis_title': 13,
-        'axis_tick': 11,
-        'legend': 11,
-        'annotation': 10,
-        'footer': 9
+        'axis_title': 12,
+        'axis_tick': 10,
+        'legend': 10,
+        'footer': 8
     }
 
     FONT_FAMILY = "Arial"
 
-    # Responsive spacing
+    # Mobile-optimized spacing
     SPACING = {
-        'margin': {'l': 50, 'r': 30, 't': 60, 'b': 100},
-        'legend_y': 1.15,
-        'footer_y': -0.22
+        'margin': {'l': 50, 'r': 30, 't': 100, 'b': 100},
+        'footer_y': -0.18
     }
 
     fig = go.Figure()
@@ -1233,12 +1211,11 @@ def create_lives_saved_chart(vaccine_impact_data):
         showlegend=False
     ))
 
-    # Responsive layout
+    # Mobile-optimized layout
     fig.update_layout(
         plot_bgcolor='white',
         paper_bgcolor='white',
         autosize=True,
-        responsive=True,
         font=dict(family=FONT_FAMILY, size=FONT_SIZES['axis_tick'], color='black'),
         margin=dict(
             l=SPACING['margin']['l'], 
@@ -1268,12 +1245,12 @@ def create_lives_saved_chart(vaccine_impact_data):
         )
     )
 
-    # Create horizontal legend
-    legend_x = 0.0
-    legend_y = SPACING['legend_y']
-    cell_height = 0.03
-    cell_width = 0.02
-    spacing = 0.005
+    # Create horizontal legend - MOBILE OPTIMIZED
+    legend_x = 0.01
+    legend_y = 1.05
+    cell_height = 0.025
+    cell_width = 0.018
+    spacing = 0.004
 
     legend_text = "Lives Saved Range: "
     current_x = legend_x + 0.01
@@ -1287,10 +1264,10 @@ def create_lives_saved_chart(vaccine_impact_data):
         xanchor="left", yanchor="middle"
     )
 
-    estimated_title_width_paper_units = 0.13
+    estimated_title_width_paper_units = 0.12
     current_x += estimated_title_width_paper_units + 0.005
 
-    display_bin_indices = np.linspace(0, len(bin_labels) - 1, min(len(bin_labels), 8), dtype=int)
+    display_bin_indices = np.linspace(0, len(bin_labels) - 1, min(len(bin_labels), 7), dtype=int)
 
     for i in display_bin_indices:
         fig.add_shape(
@@ -1313,7 +1290,7 @@ def create_lives_saved_chart(vaccine_impact_data):
             xanchor="left", yanchor="middle"
         )
 
-        estimated_label_width_paper_units = len(label_text) * 0.008
+        estimated_label_width_paper_units = len(label_text) * 0.007
         current_x = label_x_position + estimated_label_width_paper_units + spacing
 
     # Add footer
@@ -1334,6 +1311,7 @@ def create_lives_saved_chart(vaccine_impact_data):
 def create_southwest_weekly_comparison(weekly_data):
     """
     Creates a responsive table showing weekly measles case comparison for Southwest states.
+    MOBILE-OPTIMIZED: Adjusted font sizes and spacing
     """
     import plotly.graph_objects as go
     import pandas as pd
@@ -1368,7 +1346,7 @@ def create_southwest_weekly_comparison(weekly_data):
             xref="paper", yref="paper",
             x=0.5, y=0.5,
             showarrow=False,
-            font=dict(size=14, color='gray')
+            font=dict(size=12, color='gray')
         )
         return fig
     
@@ -1481,29 +1459,28 @@ def create_southwest_weekly_comparison(weekly_data):
             values=header_values,
             fill_color=header_color,
             align=['left', 'center', 'center', 'center', 'center'],
-            font=dict(color='black', size=12, family='Arial'),
+            font=dict(color='black', size=11, family='Arial'),
             height=40
         ),
         cells=dict(
             values=cell_values,
             fill_color=fill_colors,
             align=['left', 'center', 'center', 'center', 'center'],
-            font=dict(color=font_color_values, size=11, family='Arial'),
+            font=dict(color=font_color_values, size=10, family='Arial'),
             height=35,
             line=dict(color='white', width=1)
         )
     )])
     
-    # Responsive layout
+    # Mobile-optimized layout
     last_refreshed = datetime.now().strftime('%B %d, %Y at %I:%M %p')
     
     fig.update_layout(
         title=None,
         autosize=True,
-        responsive=True,
         margin=dict(l=10, r=10, t=20, b=70, pad=4),
         paper_bgcolor='white',
-        font=dict(family='Arial', size=11),
+        font=dict(family='Arial', size=10),
         clickmode='event+select'
     )
     
@@ -1515,7 +1492,7 @@ def create_southwest_weekly_comparison(weekly_data):
         x=0.0, y=-0.15,
         xanchor="left", yanchor="top",
         showarrow=False,
-        font=dict(size=9, color='gray', family='Arial'),
+        font=dict(size=8, color='gray', family='Arial'),
         align="left"
     )
     
@@ -1530,16 +1507,16 @@ def get_responsive_config():
     """
     return {
         'responsive': True,
-        'displayModeBar': True,
+        'displayModeBar': 'hover',
         'displaylogo': False,
-        'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d'],
+        'modeBarButtonsToRemove': ['pan2d', 'lasso2d', 'select2d', 'zoomIn2d', 'zoomOut2d'],
         'toImageButtonOptions': {
             'format': 'png',
             'filename': 'chart',
             'height': None,
             'width': None,
             'scale': 2
-        }
+        },
+        'scrollZoom': False,
+        'doubleClick': 'reset'
     }
-
-
