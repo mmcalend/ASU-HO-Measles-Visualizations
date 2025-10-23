@@ -46,7 +46,57 @@ jobs:
     - name: Create data directories
       run: |
         mkdir -p data/backups
+        mkdir -p data/weekly_tracking
         mkdir -p docs
+
+    - name: Debug - Check weekly history BEFORE running
+      run: |
+        echo "=== Current working directory ==="
+        pwd
+        
+        echo ""
+        echo "=== Repository structure ==="
+        ls -la
+        
+        echo ""
+        echo "=== Data directory ==="
+        ls -la data/ || echo "data/ directory doesn't exist"
+        
+        echo ""
+        echo "=== Weekly tracking directory ==="
+        ls -la data/weekly_tracking/ || echo "data/weekly_tracking/ directory doesn't exist"
+        
+        echo ""
+        echo "=== Checking for weekly history file ==="
+        if [ -f "data/weekly_tracking/weekly_history.json" ]; then
+          echo "✓ File EXISTS"
+          echo "Size: $(wc -c < data/weekly_tracking/weekly_history.json) bytes"
+          echo "Lines: $(wc -l < data/weekly_tracking/weekly_history.json)"
+          echo ""
+          echo "First 500 characters:"
+          head -c 500 data/weekly_tracking/weekly_history.json
+          echo ""
+          echo ""
+          echo "Validating JSON:"
+          python3 -c "
+import json
+import sys
+try:
+    with open('data/weekly_tracking/weekly_history.json', 'r') as f:
+        data = json.load(f)
+    print(f'✓ Valid JSON with {len(data)} week entries')
+    for i, week in enumerate(data):
+        week_id = week.get('week', 'unknown')
+        date = week.get('date', 'unknown')
+        num_states = len(week.get('data', []))
+        print(f'  Week {i+1}: {week_id} ({date}) - {num_states} states')
+except Exception as e:
+    print(f'✗ JSON validation failed: {e}')
+    sys.exit(1)
+          "
+        else
+          echo "✗ File DOES NOT EXIST"
+        fi
 
     - name: Backup existing visualizations
       run: |
@@ -72,6 +122,43 @@ jobs:
         python main.py
       env:
         FORCE_REFRESH: ${{ github.event.inputs.force_refresh || 'false' }}
+
+    - name: Debug - Check weekly history AFTER running
+      if: always()
+      run: |
+        echo "=== After Python execution ==="
+        if [ -f "data/weekly_tracking/weekly_history.json" ]; then
+          echo "✓ File EXISTS"
+          echo "Size: $(wc -c < data/weekly_tracking/weekly_history.json) bytes"
+          echo "Lines: $(wc -l < data/weekly_tracking/weekly_history.json)"
+          echo ""
+          echo "Last 1000 characters:"
+          tail -c 1000 data/weekly_tracking/weekly_history.json
+          echo ""
+          echo ""
+          echo "Validating JSON:"
+          python3 -c "
+import json
+try:
+    with open('data/weekly_tracking/weekly_history.json', 'r') as f:
+        data = json.load(f)
+    print(f'✓ Valid JSON with {len(data)} week entries')
+    for i, week in enumerate(data):
+        week_id = week.get('week', 'unknown')
+        date = week.get('date', 'unknown')
+        num_states = len(week.get('data', []))
+        total_cases = sum(s.get('Cases', 0) for s in week.get('data', []))
+        print(f'  Week {i+1}: {week_id} ({date}) - {num_states} states, {total_cases} total cases')
+except Exception as e:
+    print(f'✗ JSON validation failed: {e}')
+          "
+        else
+          echo "✗ File DOES NOT EXIST"
+        fi
+        
+        echo ""
+        echo "=== Docs directory ==="
+        ls -lh docs/ || echo "Docs directory empty/missing"
 
     - name: Check update status
       id: check_status
@@ -110,6 +197,11 @@ jobs:
     - name: Check for changes
       id: verify-changed-files
       run: |
+        # Explicitly add files we want to track
+        git add docs/ || true
+        git add data/backups/ || true
+        git add data/weekly_tracking/ || true
+        
         if [ -n "$(git status --porcelain)" ]; then
           echo "changed=true" >> $GITHUB_OUTPUT
           echo "Changes detected:"
@@ -124,7 +216,10 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add .
+        
+        # Show what we're committing
+        echo "Files to commit:"
+        git status --short
         
         # Add status message to commit
         if [ "${{ steps.check_status.outputs.update_successful }}" == "true" ]; then
@@ -158,7 +253,7 @@ jobs:
         echo "Site URL: ${{ steps.deployment.outputs.page_url }}"
         
         if [ "${{ steps.check_status.outputs.update_successful }}" == "false" ]; then
-          echo " Warning: Update failed but visualizations are still available"
+          echo "⚠️  Warning: Update failed but visualizations are still available"
         fi
 
   # Job to clean up old backups (keep last 30 days of data backups, last 7 days of viz backups)
@@ -241,7 +336,7 @@ jobs:
         
         # Check if key pages load
         all_passed=true
-        for page in timeline.html recent_trends.html state_map.html; do
+        for page in timeline.html recent_trends.html state_map.html southwest_weekly.html; do
           if curl -f -s -I "$SITE_URL/$page" > /dev/null; then
             echo "✓ $page is accessible"
           else
