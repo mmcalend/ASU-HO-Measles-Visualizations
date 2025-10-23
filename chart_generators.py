@@ -1375,7 +1375,12 @@ def create_lives_saved_chart(vaccine_impact_data):
 
 
 def create_southwest_weekly_comparison(weekly_data):
-
+    """
+    Creates a comparison table of Southwest states' measles cases.
+    
+    Args:
+        weekly_data: Dictionary with 'current' (fresh CDC data) and 'previous' (historical) DataFrames
+    """
     import plotly.graph_objects as go
     import pandas as pd
     from datetime import datetime, timedelta
@@ -1403,15 +1408,19 @@ def create_southwest_weekly_comparison(weekly_data):
     # Font colors for each row (white for dark backgrounds, black for light)
     font_colors = ['black', 'black', 'black', 'black', 'black', 'black']  # Matches state_row_colors
     
-    # Get current and previous week data
+    # **CRITICAL: Use the correct data sources**
+    # current_df = FRESH data from CDC API (this week)
+    # previous_df = HISTORICAL data from last week's snapshot
     current_df = weekly_data.get('current', pd.DataFrame())
     previous_df = weekly_data.get('previous', pd.DataFrame())
+    
+    logging.info(f"Southwest chart - Current data: {len(current_df)} states, Previous data: {len(previous_df)} states")
     
     if current_df.empty:
         # Return empty figure with message
         fig = go.Figure()
         fig.add_annotation(
-            text="No data available",
+            text="No current data available",
             xref="paper", yref="paper",
             x=0.5, y=0.5,
             showarrow=False,
@@ -1500,11 +1509,10 @@ def create_southwest_weekly_comparison(weekly_data):
         '<b>State Website</b>'
     ]
     
-    # Format website links - Plotly uses customdata for clickable links
+    # Format website links
     website_links = []
     for state in comparison['State']:
         if state in state_urls:
-            # Format: display text with link marker
             website_links.append(f'<a href="{state_urls[state]}">View Dashboard ↗</a>')
         else:
             website_links.append('')
@@ -1529,7 +1537,7 @@ def create_southwest_weekly_comparison(weekly_data):
         fill_colors.append(col_colors)
         font_color_values.append(col_font_colors)
     
-    # Create Plotly table with clickable links enabled
+    # Create Plotly table
     fig = go.Figure(data=[go.Table(
         columnwidth=[100, 100, 100, 100, 120],
         header=dict(
@@ -1549,7 +1557,7 @@ def create_southwest_weekly_comparison(weekly_data):
         )
     )])
     
-    # Update layout - enable clickable links
+    # Update layout
     last_refreshed = datetime.now().strftime('%B %d, %Y at %I:%M %p')
     
     fig.update_layout(
@@ -1558,7 +1566,6 @@ def create_southwest_weekly_comparison(weekly_data):
         paper_bgcolor='white',
         font=dict(family='Arial', size=12),
         autosize=True,
-        # This is the key setting for clickable links
         clickmode='event+select'
     )
     
