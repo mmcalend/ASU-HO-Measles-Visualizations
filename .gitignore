@@ -1,0 +1,34 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Data files - but keep weekly tracking!
+data/*
+!data/weekly_tracking/
+
+# Keep the weekly tracking directory and its contents
+data/weekly_tracking/*
+!data/weekly_tracking/weekly_history.json
+!data/weekly_tracking/.gitkeep
+
+# Logs
+*.log
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
