@@ -321,6 +321,26 @@ class DataManager:
         try:
             state_data = usmap_cases_raw.copy()
             
+            # **CRITICAL FIX: Filter to 2025 data FIRST, before any processing**
+            if 'year' in state_data.columns:
+                state_data['year'] = pd.to_numeric(state_data['year'], errors='coerce')
+                available_years = state_data['year'].dropna().unique()
+                logging.info(f"Years available in raw CDC data: {sorted(available_years)}")
+                
+                # Filter to 2025 data (current outbreak)
+                state_data_2025 = state_data[state_data['year'] >= 2025].copy()
+                
+                if len(state_data_2025) == 0:
+                    logging.warning("No 2025 data found in raw CDC data. Using most recent year.")
+                    most_recent_year = state_data['year'].max()
+                    logging.info(f"Most recent year: {most_recent_year}")
+                    state_data = state_data[state_data['year'] == most_recent_year].copy()
+                else:
+                    logging.info(f"Filtered to 2025 data: {len(state_data_2025)} rows")
+                    state_data = state_data_2025
+            else:
+                logging.warning("No 'year' column in raw CDC data - using all data as-is")
+            
             # Rename columns for consistency
             if 'geography' in state_data.columns:
                 state_data.rename(columns={'geography': 'State'}, inplace=True)
