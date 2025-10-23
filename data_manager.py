@@ -317,170 +317,208 @@ class DataManager:
         # Process and merge data
         processed_data = self.process_data(data)
         return processed_data
-
+    def get_fresh_state_data(self, usmap_cases_raw):
+    """
+    Extract fresh current state data from the raw CDC download
+    This is separate from historical tracking
+    
+    Args:
+        usmap_cases_raw: Raw DataFrame from CDC MeaslesCasesMap.json
+        
+    Returns:
+        pd.DataFrame: Fresh state data with State and Cases columns
+    """
+    try:
+        state_data = usmap_cases_raw.copy()
+        
+        # Rename columns for consistency
+        if 'geography' in state_data.columns:
+            state_data.rename(columns={'geography': 'State'}, inplace=True)
+        
+        # Find and rename the cases column
+        cases_col = next((c for c in ['cases_calendar_year', 'cases', 'Cases'] if c in state_data.columns), None)
+        if cases_col:
+            state_data.rename(columns={cases_col: 'Cases'}, inplace=True)
+            state_data['Cases'] = pd.to_numeric(state_data['Cases'], errors='coerce').fillna(0).astype(int)
+        
+        # Filter out non-states
+        state_data = state_data[~state_data['State'].isin(['New York City', 'District of Columbia'])].copy()
+        
+        # Remove duplicates, keeping first occurrence
+        if 'State' in state_data.columns:
+            state_data = state_data.drop_duplicates(subset=['State'], keep='first')
+        
+        # Keep only State and Cases columns
+        if 'State' in state_data.columns and 'Cases' in state_data.columns:
+            state_data = state_data[['State', 'Cases']].copy()
+            logging.info(f"Extracted fresh state data: {len(state_data)} states")
+            return state_data
+        else:
+            logging.error("Missing required columns in state data")
+            return pd.DataFrame()
+            
+    except Exception as e:
+        logging.error(f"Failed to extract fresh state data: {e}")
+        return pd.DataFrame()
+        
     def process_data(self, raw_data):
-        """
-        Process and clean raw data with proper data type handling
+    """
+    Process and clean raw data with proper data type handling
+    
+    Args:
+        raw_data (dict): Dictionary of raw datasets
         
-        Args:
-            raw_data (dict): Dictionary of raw datasets
+    Returns:
+        dict: Dictionary of processed datasets
+    """
+    processed = {}
+    
+    try:
+        # Timeline data - already clean, ensure Year is numeric
+        timeline = raw_data['timeline'].copy()
+        if 'Year' in timeline.columns:
+            timeline['Year'] = pd.to_numeric(timeline['Year'], errors='coerce')
+        processed['timeline'] = timeline
+        logging.info("Processed timeline data successfully")
+        
+        # US Measles data - ensure year is numeric
+        usmeasles = raw_data['usmeasles'].copy()
+        if 'year' in usmeasles.columns:
+            usmeasles = self.standardize_year_columns(usmeasles, 'year')
+        processed['usmeasles'] = usmeasles
+        logging.info("Processed US measles data successfully")
+        
+        # MMR Coverage data - ensure year is numeric
+        mmr = raw_data['mmr'].copy()
+        if 'year' in mmr.columns:
+            mmr = self.standardize_year_columns(mmr, 'year')
+        processed['mmr'] = mmr
+        logging.info("Processed MMR data successfully")
+        
+        # Process map data with proper data type handling
+        logging.info("Processing map data...")
+        mmr_map = raw_data['mmr_map'].rename(columns={'Geography': 'geography'})
+        usmap_cases = raw_data['usmap_cases'].copy()
+        
+        # **CRITICAL: Extract fresh state data BEFORE any processing**
+        fresh_state_data = self.get_fresh_state_data(usmap_cases)
+        logging.info(f"Extracted fresh state data: {len(fresh_state_data)} states with cases")
+        
+        # Ensure consistent data types for merge
+        if 'year' in mmr_map.columns:
+            mmr_map = self.standardize_year_columns(mmr_map, 'year')
+        if 'year' in usmap_cases.columns:
+            usmap_cases = self.standardize_year_columns(usmap_cases, 'year')
+        
+        # Merge map data
+        usmap = usmap_cases.merge(mmr_map, on='geography', how='left')
+        
+        # Filter out NYC and DC as they are not states
+        usmap = usmap[~usmap['geography'].isin(['New York City', 'District of Columbia'])].copy()
+        
+        # Handle year filtering - check both possible year columns
+        year_col = 'year_x' if 'year_x' in usmap.columns else 'year'
+        if year_col in usmap.columns:
+            # Convert year column to numeric
+            usmap[year_col] = pd.to_numeric(usmap[year_col], errors='coerce')
+            available_years = usmap[year_col].dropna().unique()
+            logging.info(f"Available years in merged data: {sorted(available_years)}")
             
-        Returns:
-            dict: Dictionary of processed datasets
-        """
-        processed = {}
+            # Filter to 2025 outbreak data 
+            usmap_2025 = usmap[usmap[year_col] >= 2025].copy()
+            logging.info(f"After filtering to 2025: {len(usmap_2025)} rows")
+            
+            if len(usmap_2025) == 0:
+                logging.warning("No 2025 data found. Checking for most recent year instead...")
+                if len(usmap) > 0:
+                    most_recent_year = usmap[year_col].max()
+                    logging.info(f"Most recent year available: {most_recent_year}")
+                    usmap_2025 = usmap[usmap[year_col] == most_recent_year].copy()
+                    logging.info(f"Using {most_recent_year} data: {len(usmap_2025)} rows")
+            
+            usmap = usmap_2025
         
+        # Convert Estimate (%) to numeric and handle any string values
+        if 'Estimate (%)' in usmap.columns:
+            usmap['Estimate (%)'] = pd.to_numeric(usmap['Estimate (%)'], errors='coerce')
+        
+        # Ensure cases column is numeric for calculations
+        cases_col = next((c for c in ['cases_calendar_year', 'cases', 'Cases'] if c in usmap.columns), None)
+        if cases_col and cases_col in usmap.columns:
+            usmap[cases_col] = pd.to_numeric(usmap[cases_col], errors='coerce')
+        
+        processed['usmap'] = usmap
+        logging.info("Processed map data successfully")
+        
+        # **CRITICAL: Save the FRESH state data as weekly snapshot**
+        # This must happen BEFORE loading historical comparison
         try:
-            # Timeline data - already clean, ensure Year is numeric
-            timeline = raw_data['timeline'].copy()
-            if 'Year' in timeline.columns:
-                timeline['Year'] = pd.to_numeric(timeline['Year'], errors='coerce')
-            processed['timeline'] = timeline
-            logging.info("Processed timeline data successfully")
-            
-            # US Measles data - ensure year is numeric
-            usmeasles = raw_data['usmeasles'].copy()
-            if 'year' in usmeasles.columns:
-                usmeasles = self.standardize_year_columns(usmeasles, 'year')
-            processed['usmeasles'] = usmeasles
-            logging.info("Processed US measles data successfully")
-            
-            # MMR Coverage data - ensure year is numeric
-            mmr = raw_data['mmr'].copy()
-            if 'year' in mmr.columns:
-                mmr = self.standardize_year_columns(mmr, 'year')
-            processed['mmr'] = mmr
-            logging.info("Processed MMR data successfully")
-            
-            # Process map data with proper data type handling
-            logging.info("Processing map data...")
-            mmr_map = raw_data['mmr_map'].rename(columns={'Geography': 'geography'})
-            usmap_cases = raw_data['usmap_cases'].copy()
-            
-            # Ensure consistent data types for merge
-            if 'year' in mmr_map.columns:
-                mmr_map = self.standardize_year_columns(mmr_map, 'year')
-            if 'year' in usmap_cases.columns:
-                usmap_cases = self.standardize_year_columns(usmap_cases, 'year')
-            
-            # Merge map data
-            usmap = usmap_cases.merge(mmr_map, on='geography', how='left')
-            
-            # Filter out NYC and DC as they are not states
-            usmap = usmap[~usmap['geography'].isin(['New York City', 'District of Columbia'])].copy()
-            
-            # Handle year filtering - check both possible year columns
-            year_col = 'year_x' if 'year_x' in usmap.columns else 'year'
-            if year_col in usmap.columns:
-                # Convert year column to numeric
-                usmap[year_col] = pd.to_numeric(usmap[year_col], errors='coerce')
-                available_years = usmap[year_col].dropna().unique()
-                logging.info(f"Available years in merged data: {sorted(available_years)}")
-                
-                # Filter to 2025 outbreak data 
-                usmap_2025 = usmap[usmap[year_col] >= 2025].copy()
-                logging.info(f"After filtering to 2025: {len(usmap_2025)} rows")
-                
-                if len(usmap_2025) == 0:
-                    logging.warning("No 2025 data found. Checking for most recent year instead...")
-                    if len(usmap) > 0:
-                        most_recent_year = usmap[year_col].max()
-                        logging.info(f"Most recent year available: {most_recent_year}")
-                        usmap_2025 = usmap[usmap[year_col] == most_recent_year].copy()
-                        logging.info(f"Using {most_recent_year} data: {len(usmap_2025)} rows")
-                
-                usmap = usmap_2025
-            
-            # Convert Estimate (%) to numeric and handle any string values
-            if 'Estimate (%)' in usmap.columns:
-                usmap['Estimate (%)'] = pd.to_numeric(usmap['Estimate (%)'], errors='coerce')
-            
-            # Ensure cases column is numeric for calculations
-            cases_col = next((c for c in ['cases_calendar_year', 'cases', 'Cases'] if c in usmap.columns), None)
-            if cases_col and cases_col in usmap.columns:
-                usmap[cases_col] = pd.to_numeric(usmap[cases_col], errors='coerce')
-            
-            processed['usmap'] = usmap
-            logging.info("Processed map data successfully")
-            
-            # Process state data for weekly tracking
-            logging.info("Processing weekly state data...")
-            state_weekly = usmap_cases.copy()
-            
-            # Rename columns for consistency
-            if 'geography' in state_weekly.columns:
-                state_weekly.rename(columns={'geography': 'State'}, inplace=True)
-            
-            cases_col = next((c for c in ['cases_calendar_year', 'cases', 'Cases'] if c in state_weekly.columns), None)
-            if cases_col:
-                state_weekly.rename(columns={cases_col: 'Cases'}, inplace=True)
-                state_weekly['Cases'] = pd.to_numeric(state_weekly['Cases'], errors='coerce').fillna(0).astype(int)
-            
-            # Get most recent data (don't filter by year - the CDC endpoint has current data)
-            # If there are duplicates, keep the first occurrence
-            if 'State' in state_weekly.columns:
-                state_weekly = state_weekly.drop_duplicates(subset=['State'], keep='first')
-            
-            # Save weekly snapshot BEFORE loading comparison data
-            # This ensures we're saving the NEW data that was just downloaded
-            try:
-                if 'State' in state_weekly.columns and 'Cases' in state_weekly.columns:
-                    self.save_weekly_snapshot(state_weekly)
-                    logging.info(f"Saved weekly snapshot with {len(state_weekly)} states")
-            except Exception as e:
-                logging.error(f"Failed to save weekly snapshot (non-critical): {e}")
-            
-            # NOW load the comparison data from history (not from fresh CDC data)
-            processed['weekly_comparison'] = self.get_weekly_comparison_data()
-            logging.info("Loaded weekly comparison data from history")
-            
-            # Process vaccine impact data
-            logging.info("Processing vaccine impact data...")
-            vax_df = raw_data['vaccine_with'].copy()
-            no_vax_df = raw_data['vaccine_without'].copy()
-            
-            # Ensure year columns are consistent
-            if 'year' in vax_df.columns:
-                vax_df = self.standardize_year_columns(vax_df, 'year')
-            if 'year' in no_vax_df.columns:
-                no_vax_df = self.standardize_year_columns(no_vax_df, 'year')
-            
-            # Filter for USA data
-            vax_usa = vax_df[vax_df['iso'] == 'USA'].copy()
-            no_vax_usa = no_vax_df[no_vax_df['iso'] == 'USA'].copy()
-            
-            # Merge vaccine data
-            merged_vaccine = pd.merge(no_vax_usa, vax_usa, on='year', suffixes=('_no_vaccine', '_vaccine'))
-            
-            # Calculate lives saved - ensure numeric columns
-            numeric_cols = ['mean_deaths_no_vaccine', 'mean_deaths_vaccine', 
-                           'ub_deaths_no_vaccine', 'lb_deaths_vaccine',
-                           'lb_deaths_no_vaccine', 'ub_deaths_vaccine']
-            
-            for col in numeric_cols:
-                if col in merged_vaccine.columns:
-                    merged_vaccine[col] = pd.to_numeric(merged_vaccine[col], errors='coerce')
-            
-            merged_vaccine['lives_saved'] = (merged_vaccine['mean_deaths_no_vaccine'] - 
-                                           merged_vaccine['mean_deaths_vaccine'])
-            merged_vaccine['lives_saved_ub'] = (merged_vaccine['ub_deaths_no_vaccine'] - 
-                                              merged_vaccine['lb_deaths_vaccine'])
-            merged_vaccine['lives_saved_lb'] = (merged_vaccine['lb_deaths_no_vaccine'] - 
-                                              merged_vaccine['ub_deaths_vaccine'])
-            merged_vaccine = merged_vaccine.sort_values('year')
-            
-            processed['vaccine_impact'] = merged_vaccine
-            logging.info("Processed vaccine impact data successfully")
-            
-            return processed
-            
+            if not fresh_state_data.empty:
+                self.save_weekly_snapshot(fresh_state_data)
+                logging.info(f"Saved fresh weekly snapshot with {len(fresh_state_data)} states")
+            else:
+                logging.warning("Fresh state data is empty - not saving snapshot")
         except Exception as e:
-            logging.error(f"Error in process_data: {e}")
-            logging.error(f"Available keys in raw_data: {list(raw_data.keys())}")
-            for key, value in raw_data.items():
-                logging.error(f"{key}: type={type(value)}, shape={getattr(value, 'shape', 'No shape')}")
-            return None
-
+            logging.error(f"Failed to save weekly snapshot (non-critical): {e}")
+        
+        # Load historical comparison data (previous weeks from history file)
+        historical_comparison = self.get_weekly_comparison_data()
+        
+        # **CRITICAL: Build the comparison using FRESH current + HISTORICAL previous**
+        processed['weekly_comparison'] = {
+            'current': fresh_state_data,  # Fresh from CDC API
+            'previous': historical_comparison.get('current', pd.DataFrame())  # What was current last week
+        }
+        
+        logging.info(f"Weekly comparison ready: Current={len(fresh_state_data)} states, Previous={len(processed['weekly_comparison']['previous'])} states")
+        
+        # Process vaccine impact data
+        logging.info("Processing vaccine impact data...")
+        vax_df = raw_data['vaccine_with'].copy()
+        no_vax_df = raw_data['vaccine_without'].copy()
+        
+        # Ensure year columns are consistent
+        if 'year' in vax_df.columns:
+            vax_df = self.standardize_year_columns(vax_df, 'year')
+        if 'year' in no_vax_df.columns:
+            no_vax_df = self.standardize_year_columns(no_vax_df, 'year')
+        
+        # Filter for USA data
+        vax_usa = vax_df[vax_df['iso'] == 'USA'].copy()
+        no_vax_usa = no_vax_df[no_vax_df['iso'] == 'USA'].copy()
+        
+        # Merge vaccine data
+        merged_vaccine = pd.merge(no_vax_usa, vax_usa, on='year', suffixes=('_no_vaccine', '_vaccine'))
+        
+        # Calculate lives saved - ensure numeric columns
+        numeric_cols = ['mean_deaths_no_vaccine', 'mean_deaths_vaccine', 
+                       'ub_deaths_no_vaccine', 'lb_deaths_vaccine',
+                       'lb_deaths_no_vaccine', 'ub_deaths_vaccine']
+        
+        for col in numeric_cols:
+            if col in merged_vaccine.columns:
+                merged_vaccine[col] = pd.to_numeric(merged_vaccine[col], errors='coerce')
+        
+        merged_vaccine['lives_saved'] = (merged_vaccine['mean_deaths_no_vaccine'] - 
+                                       merged_vaccine['mean_deaths_vaccine'])
+        merged_vaccine['lives_saved_ub'] = (merged_vaccine['ub_deaths_no_vaccine'] - 
+                                          merged_vaccine['lb_deaths_vaccine'])
+        merged_vaccine['lives_saved_lb'] = (merged_vaccine['lb_deaths_no_vaccine'] - 
+                                          merged_vaccine['ub_deaths_vaccine'])
+        merged_vaccine = merged_vaccine.sort_values('year')
+        
+        processed['vaccine_impact'] = merged_vaccine
+        logging.info("Processed vaccine impact data successfully")
+        
+        return processed
+        
+    except Exception as e:
+        logging.error(f"Error in process_data: {e}")
+        logging.error(f"Available keys in raw_data: {list(raw_data.keys())}")
+        for key, value in raw_data.items():
+            logging.error(f"{key}: type={type(value)}, shape={getattr(value, 'shape', 'No shape')}")
+        return None
+        
     def validate_data(self, data):
         """
         Validate data quality and completeness
