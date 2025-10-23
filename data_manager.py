@@ -511,8 +511,11 @@ class DataManager:
             processed['usmap'] = usmap
             logging.info("Processed map data successfully")
             
-            # **CRITICAL: Save the FRESH state data as weekly snapshot**
-            # This must happen BEFORE loading historical comparison
+            # **CRITICAL FIX: Load historical comparison data BEFORE saving new snapshot**
+            # This ensures we get the previous week's data before overwriting
+            historical_comparison = self.get_weekly_comparison_data()
+            
+            # Save the FRESH state data as weekly snapshot AFTER loading history
             try:
                 if not fresh_state_data.empty:
                     self.save_weekly_snapshot(fresh_state_data)
@@ -522,13 +525,10 @@ class DataManager:
             except Exception as e:
                 logging.error(f"Failed to save weekly snapshot (non-critical): {e}")
             
-            # Load historical comparison data (previous weeks from history file)
-            historical_comparison = self.get_weekly_comparison_data()
-            
-            # **CRITICAL: Build the comparison using FRESH current + HISTORICAL previous**
+            # **CRITICAL FIX: Build the comparison using FRESH current + HISTORICAL previous**
             processed['weekly_comparison'] = {
                 'current': fresh_state_data,  # Fresh from CDC API
-                'previous': historical_comparison.get('current', pd.DataFrame())  # What was current last week
+                'previous': historical_comparison.get('previous', pd.DataFrame())  # Previous week from history
             }
             
             logging.info(f"Weekly comparison ready: Current={len(fresh_state_data)} states, Previous={len(processed['weekly_comparison']['previous'])} states")
