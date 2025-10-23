@@ -80,19 +80,6 @@ The system pulls data from multiple authoritative sources:
 - Can be manually triggered via GitHub Actions
 - Automatically runs on push to main branch (for testing)
 
-**Update Process:**
-1. **Data Fetching**: Downloads fresh data from CDC and WHO
-2. **Backup Creation**: Saves timestamped backups of all downloaded data
-3. **Data Processing**: Merges, cleans, and validates all datasets
-4. **Weekly Tracking**: Saves current week's state data to history file
-5. **Visualization Generation**: Creates all charts and tables
-6. **Git Commit**: Commits updated visualizations and weekly history to repository
-7. **Deployment**: Publishes to GitHub Pages for public access
-
-### Reliability & Fallback System
-
-The system is designed to **never go down** even if data sources fail:
-
 **Three-Layer Fallback:**
 1. **Primary**: Fresh data from CDC/WHO APIs
 2. **Secondary**: Timestamped backups in `data/backups/` (kept for 30 days, minimum 5 retained)
@@ -104,7 +91,3 @@ The system is designed to **never go down** even if data sources fail:
 - If backup data is corrupted → Keeps existing visualizations unchanged
 - If generation fails entirely → Restores from visualization backup
 - Workflow always succeeds → Site stays operational
-
-
-**Last Updated:** January 2025  
-**Maintained By:** ASU Health Observatory
