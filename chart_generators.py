@@ -2,7 +2,7 @@ import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 import math
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import logging
 
 def create_measles_timeline(timeline_data):
@@ -217,7 +217,7 @@ def create_measles_timeline(timeline_data):
         fig.update_layout(annotations=create_annotations(highlight_data))
 
     # Enhanced layout configuration with consistent spacing
-    last_refreshed = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+    last_refreshed = datetime.now(timezone(timedelta(hours=-7))).strftime("%B %d, %Y at %I:%M %p MST")
 
     fig.update_layout(
         title=None,
@@ -540,7 +540,7 @@ def create_recent_trends(usmeasles_data, mmr_data):
         )
 
     # Enhanced footer note with proper typography hierarchy
-    last_refreshed = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+    last_refreshed = datetime.now(timezone(timedelta(hours=-7))).strftime("%B %d, %Y at %I:%M %p MST")
     fig.add_annotation(
         text=f"<b>Last refreshed:</b> {last_refreshed}",
         xref="paper", yref="paper",
@@ -744,7 +744,7 @@ def create_rnaught_comparison():
     )
 
     # Enhanced footer note with proper typography hierarchy
-    last_refreshed = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+    last_refreshed = datetime.now(timezone(timedelta(hours=-7))).strftime("%B %d, %Y at %I:%M %p MST")
     fig.add_annotation(
         text=(f"<b>Last refreshed:</b> {last_refreshed}<br>"),
         xref="paper", yref="paper",
@@ -1132,7 +1132,7 @@ def create_bivariate_choropleth(usmap_data):
 
     # Add timestamp and notes positioned at the bottom for full screen
     fig.add_annotation(
-         text=(f"<b>Last refreshed:</b> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}<br>"
+         text=(f"<b>Last refreshed:</b> {datetime.now(timezone(timedelta(hours=-7))).strftime('%B %d, %Y at %I:%M %p MST')}<br>"
               "<i>Note: Grey states are missing vaccination coverage data from the 2024-2025 school year</i>"),
         xref="paper", yref="paper",
         x=0.02, y=0.02,  # Position at bottom left for full screen
@@ -1360,9 +1360,9 @@ def create_lives_saved_chart(vaccine_impact_data):
         current_x = label_x_position + estimated_label_width_paper_units + spacing
 
     # Add footer with proper spacing matching the second function
-    last_refreshed = datetime.now().strftime('%B %d, %Y at %I:%M %p')
+    last_refreshed = datetime.now(timezone(timedelta(hours=-7))).strftime('%B %d, %Y at %I:%M %p MST')
     fig.add_annotation(
-          text=(f"<b>Last refreshed:</b> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}<br>"
+          text=(f"<b>Last refreshed:</b> {datetime.now(timezone(timedelta(hours=-7))).strftime('%B %d, %Y at %I:%M %p MST')}<br>"
               "<i>Note: These are mathematical model estimates, not observed deaths</i>"),
         xref="paper", yref="paper",
         x=0.0, y=SPACING['footer_y'],
@@ -1559,7 +1559,7 @@ def create_southwest_weekly_comparison(weekly_data):
     )])
     
     # Update layout
-    last_refreshed = datetime.now().strftime('%B %d, %Y at %I:%M %p')
+    last_refreshed = datetime.now(timezone(timedelta(hours=-7))).strftime('%B %d, %Y at %I:%M %p MST')
     
     fig.update_layout(
         title=None,
