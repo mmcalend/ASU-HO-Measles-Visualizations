@@ -253,7 +253,7 @@ except Exception as e:
         echo "Site URL: ${{ steps.deployment.outputs.page_url }}"
         
         if [ "${{ steps.check_status.outputs.update_successful }}" == "false" ]; then
-          echo "⚠️  Warning: Update failed but visualizations are still available"
+          echo "Warning: Update failed but visualizations are still available"
         fi
 
   # Job to clean up old backups (keep last 30 days of data backups, last 7 days of viz backups)
