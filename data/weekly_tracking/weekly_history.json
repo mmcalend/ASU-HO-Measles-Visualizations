@@ -1442,7 +1442,7 @@
     ]
   },
   {
-    "date": "2025-12-17",
+    "date": "2025-12-18",
     "week": "2025-W50",
     "data": [
       {
@@ -1455,7 +1455,7 @@
       },
       {
         "State": "Arizona",
-        "Cases": 169
+        "Cases": 182
       },
       {
         "State": "Arkansas",
@@ -1467,11 +1467,11 @@
       },
       {
         "State": "Colorado",
-        "Cases": 32
+        "Cases": 35
       },
       {
         "State": "Connecticut",
-        "Cases": 0
+        "Cases": 1
       },
       {
         "State": "Delaware",
@@ -1603,11 +1603,11 @@
       },
       {
         "State": "South Carolina",
-        "Cases": 123
+        "Cases": 142
       },
       {
         "State": "South Dakota",
-        "Cases": 12
+        "Cases": 15
       },
       {
         "State": "Tennessee",
@@ -1619,7 +1619,7 @@
       },
       {
         "State": "Utah",
-        "Cases": 115
+        "Cases": 122
       },
       {
         "State": "Vermont",
