@@ -1442,7 +1442,7 @@
     ]
   },
   {
-    "date": "2025-12-23",
+    "date": "2025-12-24",
     "week": "2025-W51",
     "data": [
       {
@@ -1455,7 +1455,7 @@
       },
       {
         "State": "Arizona",
-        "Cases": 182
+        "Cases": 187
       },
       {
         "State": "Arkansas",
@@ -1463,7 +1463,7 @@
       },
       {
         "State": "California",
-        "Cases": 23
+        "Cases": 24
       },
       {
         "State": "Colorado",
@@ -1503,7 +1503,7 @@
       },
       {
         "State": "Iowa",
-        "Cases": 8
+        "Cases": 9
       },
       {
         "State": "Kansas",
@@ -1531,7 +1531,7 @@
       },
       {
         "State": "Michigan",
-        "Cases": 28
+        "Cases": 29
       },
       {
         "State": "Minnesota",
@@ -1547,7 +1547,7 @@
       },
       {
         "State": "Montana",
-        "Cases": 35
+        "Cases": 36
       },
       {
         "State": "Nebraska",
@@ -1571,7 +1571,7 @@
       },
       {
         "State": "New York",
-        "Cases": 21
+        "Cases": 26
       },
       {
         "State": "North Carolina",
@@ -1603,7 +1603,7 @@
       },
       {
         "State": "South Carolina",
-        "Cases": 142
+        "Cases": 156
       },
       {
         "State": "South Dakota",
@@ -1619,7 +1619,7 @@
       },
       {
         "State": "Utah",
-        "Cases": 122
+        "Cases": 142
       },
       {
         "State": "Vermont",
@@ -1643,7 +1643,7 @@
       },
       {
         "State": "Wyoming",
-        "Cases": 9
+        "Cases": 15
       }
     ]
   }
