@@ -1442,7 +1442,7 @@
     ]
   },
   {
-    "date": "2026-01-07",
+    "date": "2026-01-08",
     "week": "2026-W01",
     "data": [
       {
@@ -1455,7 +1455,7 @@
       },
       {
         "State": "Arizona",
-        "Cases": 196
+        "Cases": 205
       },
       {
         "State": "Arkansas",
@@ -1551,7 +1551,7 @@
       },
       {
         "State": "Nebraska",
-        "Cases": 2
+        "Cases": 5
       },
       {
         "State": "Nevada",
@@ -1575,7 +1575,7 @@
       },
       {
         "State": "North Carolina",
-        "Cases": 0
+        "Cases": 2
       },
       {
         "State": "North Dakota",
@@ -1583,7 +1583,7 @@
       },
       {
         "State": "Ohio",
-        "Cases": 39
+        "Cases": 40
       },
       {
         "State": "Oklahoma",
@@ -1603,7 +1603,7 @@
       },
       {
         "State": "South Carolina",
-        "Cases": 181
+        "Cases": 224
       },
       {
         "State": "South Dakota",
@@ -1619,7 +1619,7 @@
       },
       {
         "State": "Utah",
-        "Cases": 156
+        "Cases": 176
       },
       {
         "State": "Vermont",
