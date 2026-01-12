@@ -11,6 +11,9 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class DataManager:
+    # Outbreak tracking constants
+    OUTBREAK_START_YEAR = 2025  # The year the current measles outbreak began
+    
     def __init__(self, data_dir="data", backup_dir="data/backups"):
         """
         Initialize DataManager with data and backup directories
@@ -47,6 +50,7 @@ class DataManager:
         self.weekly_history_file = self.weekly_dir / 'weekly_history.json'
         
         logging.info(f"DataManager initialized")
+        logging.info(f"Tracking outbreak starting from year: {self.OUTBREAK_START_YEAR}")
         logging.info(f"Weekly history file path: {self.weekly_history_file.absolute()}")
 
     def download_data(self, url, timeout=30):
@@ -310,34 +314,34 @@ class DataManager:
     def get_fresh_state_data(self, usmap_cases_raw):
         """
         Extract fresh current state data from the raw CDC download
-        This is separate from historical tracking
+        This aggregates all outbreak years (2025+) for cumulative totals
         
         Args:
             usmap_cases_raw: Raw DataFrame from CDC MeaslesCasesMap.json
             
         Returns:
-            pd.DataFrame: Fresh state data with State and Cases columns
+            pd.DataFrame: Fresh state data with State and Cases columns (cumulative since outbreak)
         """
         try:
             state_data = usmap_cases_raw.copy()
             
+            # **CRITICAL FIX: Filter to outbreak data (2025+) FIRST, before any processing**
             if 'year' in state_data.columns:
                 state_data['year'] = pd.to_numeric(state_data['year'], errors='coerce')
                 available_years = state_data['year'].dropna().unique()
                 logging.info(f"Years available in raw CDC data: {sorted(available_years)}")
                 
-                # Get current year and filter to current outbreak year
-                current_year = datetime.now().year
-                state_data_current = state_data[state_data['year'] >= current_year].copy()
-
-                if len(state_data_current) == 0:
-                    logging.warning(f"No {current_year} data found in raw CDC data. Using most recent year.")
+                # Filter to outbreak data (2025 onwards for ongoing outbreak)
+                state_data_outbreak = state_data[state_data['year'] >= self.OUTBREAK_START_YEAR].copy()
+                
+                if len(state_data_outbreak) == 0:
+                    logging.warning(f"No data found since outbreak start ({self.OUTBREAK_START_YEAR}). Using most recent year.")
                     most_recent_year = state_data['year'].max()
                     logging.info(f"Most recent year: {most_recent_year}")
                     state_data = state_data[state_data['year'] == most_recent_year].copy()
                 else:
-                    logging.info(f"Filtered to {current_year} data: {len(state_data_current)} rows")
-                    state_data = state_data_current
+                    logging.info(f"Filtered to outbreak data ({self.OUTBREAK_START_YEAR}+): {len(state_data_outbreak)} rows")
+                    state_data = state_data_outbreak
             else:
                 logging.warning("No 'year' column in raw CDC data - using all data as-is")
             
@@ -354,19 +358,17 @@ class DataManager:
             # Filter out non-states
             state_data = state_data[~state_data['State'].isin(['New York City', 'District of Columbia'])].copy()
             
-            # Remove duplicates, keeping first occurrence
-            if 'State' in state_data.columns:
-                state_data = state_data.drop_duplicates(subset=['State'], keep='first')
-            
-            # Keep only State and Cases columns
+            # Keep only State and Cases columns, then aggregate
             if 'State' in state_data.columns and 'Cases' in state_data.columns:
-                state_data = state_data[['State', 'Cases']].copy()
-                logging.info(f"Extracted fresh state data: {len(state_data)} states")
+                # **AGGREGATE CASES BY STATE** - Sum across all years in the outbreak
+                state_data = state_data.groupby('State', as_index=False)['Cases'].sum()
+                
+                logging.info(f"Aggregated outbreak cases across years for {len(state_data)} states")
                 
                 # Log some sample data for verification
                 total_cases = state_data['Cases'].sum()
                 states_with_cases = state_data[state_data['Cases'] > 0]
-                logging.info(f"Total cases across all states: {total_cases}")
+                logging.info(f"Total outbreak cases across all states: {total_cases}")
                 logging.info(f"States with cases: {len(states_with_cases)}")
                 if len(states_with_cases) > 0:
                     logging.info(f"Sample data:\n{states_with_cases.head(10).to_string()}")
@@ -505,20 +507,19 @@ class DataManager:
                 available_years = usmap[year_col].dropna().unique()
                 logging.info(f"Available years in merged data: {sorted(available_years)}")
                 
-                # Filter to 2025 outbreak data 
-                current_year = datetime.now().year
-                usmap_current = usmap[usmap[year_col] >= current_year].copy()
-                logging.info(f"After filtering to {current_year}: {len(usmap_current)} rows")
+                # Filter to outbreak data (cumulative since 2025)
+                usmap_outbreak = usmap[usmap[year_col] >= self.OUTBREAK_START_YEAR].copy()
+                logging.info(f"After filtering to outbreak data ({self.OUTBREAK_START_YEAR}+): {len(usmap_outbreak)} rows")
                 
-                if len(usmap_current) == 0:
-                    logging.warning("No 2025 data found. Checking for most recent year instead...")
+                if len(usmap_outbreak) == 0:
+                    logging.warning(f"No data found since outbreak start ({self.OUTBREAK_START_YEAR}). Checking for most recent year instead...")
                     if len(usmap) > 0:
                         most_recent_year = usmap[year_col].max()
                         logging.info(f"Most recent year available: {most_recent_year}")
-                        usmap_current = usmap[usmap[year_col] == most_recent_year].copy()
-                        logging.info(f"Using {most_recent_year} data: {len(usmap_current)} rows")
-                usmap = usmap_current
-             
+                        usmap_outbreak = usmap[usmap[year_col] == most_recent_year].copy()
+                        logging.info(f"Using {most_recent_year} data: {len(usmap_outbreak)} rows")
+                
+                usmap = usmap_outbreak
             
             # Convert Estimate (%) to numeric and handle any string values
             if 'Estimate (%)' in usmap.columns:
@@ -528,6 +529,29 @@ class DataManager:
             cases_col = next((c for c in ['cases_calendar_year', 'cases', 'Cases'] if c in usmap.columns), None)
             if cases_col and cases_col in usmap.columns:
                 usmap[cases_col] = pd.to_numeric(usmap[cases_col], errors='coerce')
+            
+            # **CRITICAL: Aggregate cases by state across multiple years for the map**
+            if cases_col:
+                # Sum cases by geography (state) across all years
+                cases_by_state = usmap.groupby('geography', as_index=False)[cases_col].sum()
+                
+                # Keep the most recent vaccination coverage data per state
+                vaccination_data = usmap.sort_values(year_col, ascending=False).drop_duplicates('geography', keep='first')
+                
+                # Merge aggregated cases with vaccination coverage
+                usmap = cases_by_state.merge(
+                    vaccination_data[['geography', 'Estimate (%)']],
+                    on='geography',
+                    how='left'
+                )
+                
+                logging.info(f"Aggregated map data: {len(usmap)} states with cumulative cases since {self.OUTBREAK_START_YEAR}")
+                
+                # Log verification
+                total_outbreak_cases = usmap[cases_col].sum()
+                states_with_cases = len(usmap[usmap[cases_col] > 0])
+                logging.info(f"Total outbreak cases on map: {total_outbreak_cases}")
+                logging.info(f"Number of states with cases on map: {states_with_cases}")
             
             processed['usmap'] = usmap
             logging.info("Processed map data successfully")
@@ -548,7 +572,7 @@ class DataManager:
             
             # **CRITICAL FIX: Build the comparison using FRESH current + HISTORICAL previous**
             processed['weekly_comparison'] = {
-                'current': fresh_state_data,  # Fresh from CDC API
+                'current': fresh_state_data,  # Fresh from CDC API (cumulative)
                 'previous': historical_comparison.get('previous', pd.DataFrame())  # Previous week from history
             }
             
