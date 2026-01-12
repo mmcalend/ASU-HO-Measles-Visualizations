@@ -321,23 +321,23 @@ class DataManager:
         try:
             state_data = usmap_cases_raw.copy()
             
-            # **CRITICAL FIX: Filter to 2025 data FIRST, before any processing**
             if 'year' in state_data.columns:
                 state_data['year'] = pd.to_numeric(state_data['year'], errors='coerce')
                 available_years = state_data['year'].dropna().unique()
                 logging.info(f"Years available in raw CDC data: {sorted(available_years)}")
                 
-                # Filter to 2025 data (current outbreak)
-                state_data_2025 = state_data[state_data['year'] >= 2025].copy()
-                
-                if len(state_data_2025) == 0:
-                    logging.warning("No 2025 data found in raw CDC data. Using most recent year.")
+                # Get current year and filter to current outbreak year
+                current_year = datetime.now().year
+                state_data_current = state_data[state_data['year'] >= current_year].copy()
+
+                if len(state_data_current) == 0:
+                    logging.warning(f"No {current_year} data found in raw CDC data. Using most recent year.")
                     most_recent_year = state_data['year'].max()
                     logging.info(f"Most recent year: {most_recent_year}")
                     state_data = state_data[state_data['year'] == most_recent_year].copy()
                 else:
-                    logging.info(f"Filtered to 2025 data: {len(state_data_2025)} rows")
-                    state_data = state_data_2025
+                    logging.info(f"Filtered to {current_year} data: {len(state_data_current)} rows")
+                    state_data = state_data_current
             else:
                 logging.warning("No 'year' column in raw CDC data - using all data as-is")
             
@@ -506,18 +506,19 @@ class DataManager:
                 logging.info(f"Available years in merged data: {sorted(available_years)}")
                 
                 # Filter to 2025 outbreak data 
-                usmap_2025 = usmap[usmap[year_col] >= 2025].copy()
-                logging.info(f"After filtering to 2025: {len(usmap_2025)} rows")
+                current_year = datetime.now().year
+                usmap_current = usmap[usmap[year_col] >= current_year].copy()
+                logging.info(f"After filtering to {current_year}: {len(usmap_current)} rows")
                 
-                if len(usmap_2025) == 0:
+                if len(usmap_current) == 0:
                     logging.warning("No 2025 data found. Checking for most recent year instead...")
                     if len(usmap) > 0:
                         most_recent_year = usmap[year_col].max()
                         logging.info(f"Most recent year available: {most_recent_year}")
-                        usmap_2025 = usmap[usmap[year_col] == most_recent_year].copy()
-                        logging.info(f"Using {most_recent_year} data: {len(usmap_2025)} rows")
-                
-                usmap = usmap_2025
+                        usmap_current = usmap[usmap[year_col] == most_recent_year].copy()
+                        logging.info(f"Using {most_recent_year} data: {len(usmap_current)} rows")
+                usmap = usmap_current
+             
             
             # Convert Estimate (%) to numeric and handle any string values
             if 'Estimate (%)' in usmap.columns:
