@@ -1442,7 +1442,7 @@
     ]
   },
   {
-    "date": "2026-01-30",
+    "date": "2026-01-31",
     "week": "2026-W04",
     "data": [
       {
@@ -1455,7 +1455,7 @@
       },
       {
         "State": "Arizona",
-        "Cases": 221
+        "Cases": 224
       },
       {
         "State": "Arkansas",
@@ -1463,7 +1463,7 @@
       },
       {
         "State": "California",
-        "Cases": 27
+        "Cases": 28
       },
       {
         "State": "Colorado",
@@ -1479,7 +1479,7 @@
       },
       {
         "State": "Florida",
-        "Cases": 14
+        "Cases": 17
       },
       {
         "State": "Georgia",
@@ -1511,7 +1511,7 @@
       },
       {
         "State": "Kentucky",
-        "Cases": 15
+        "Cases": 17
       },
       {
         "State": "Louisiana",
@@ -1551,7 +1551,7 @@
       },
       {
         "State": "Nebraska",
-        "Cases": 5
+        "Cases": 6
       },
       {
         "State": "Nevada",
@@ -1575,7 +1575,7 @@
       },
       {
         "State": "North Carolina",
-        "Cases": 11
+        "Cases": 12
       },
       {
         "State": "North Dakota",
@@ -1591,7 +1591,7 @@
       },
       {
         "State": "Oregon",
-        "Cases": 4
+        "Cases": 6
       },
       {
         "State": "Pennsylvania",
@@ -1603,11 +1603,11 @@
       },
       {
         "State": "South Carolina",
-        "Cases": 649
+        "Cases": 790
       },
       {
         "State": "South Dakota",
-        "Cases": 16
+        "Cases": 21
       },
       {
         "State": "Tennessee",
@@ -1619,7 +1619,7 @@
       },
       {
         "State": "Utah",
-        "Cases": 219
+        "Cases": 240
       },
       {
         "State": "Vermont",
@@ -1627,11 +1627,11 @@
       },
       {
         "State": "Virginia",
-        "Cases": 8
+        "Cases": 9
       },
       {
         "State": "Washington",
-        "Cases": 17
+        "Cases": 19
       },
       {
         "State": "West Virginia",
@@ -1639,7 +1639,7 @@
       },
       {
         "State": "Wisconsin",
-        "Cases": 36
+        "Cases": 37
       },
       {
         "State": "Wyoming",
