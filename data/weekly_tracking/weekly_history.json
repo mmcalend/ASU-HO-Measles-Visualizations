@@ -1442,7 +1442,7 @@
     ]
   },
   {
-    "date": "2026-02-06",
+    "date": "2026-02-07",
     "week": "2026-W05",
     "data": [
       {
@@ -1455,7 +1455,7 @@
       },
       {
         "State": "Arizona",
-        "Cases": 224
+        "Cases": 241
       },
       {
         "State": "Arkansas",
@@ -1463,7 +1463,7 @@
       },
       {
         "State": "California",
-        "Cases": 28
+        "Cases": 33
       },
       {
         "State": "Colorado",
@@ -1479,7 +1479,7 @@
       },
       {
         "State": "Florida",
-        "Cases": 17
+        "Cases": 21
       },
       {
         "State": "Georgia",
@@ -1575,11 +1575,11 @@
       },
       {
         "State": "North Carolina",
-        "Cases": 12
+        "Cases": 14
       },
       {
         "State": "North Dakota",
-        "Cases": 36
+        "Cases": 37
       },
       {
         "State": "Ohio",
@@ -1587,7 +1587,7 @@
       },
       {
         "State": "Oklahoma",
-        "Cases": 17
+        "Cases": 18
       },
       {
         "State": "Oregon",
@@ -1595,7 +1595,7 @@
       },
       {
         "State": "Pennsylvania",
-        "Cases": 16
+        "Cases": 21
       },
       {
         "State": "Rhode Island",
@@ -1603,11 +1603,11 @@
       },
       {
         "State": "South Carolina",
-        "Cases": 790
+        "Cases": 876
       },
       {
         "State": "South Dakota",
-        "Cases": 21
+        "Cases": 22
       },
       {
         "State": "Tennessee",
@@ -1619,7 +1619,7 @@
       },
       {
         "State": "Utah",
-        "Cases": 240
+        "Cases": 259
       },
       {
         "State": "Vermont",
@@ -1627,11 +1627,11 @@
       },
       {
         "State": "Virginia",
-        "Cases": 9
+        "Cases": 10
       },
       {
         "State": "Washington",
-        "Cases": 19
+        "Cases": 27
       },
       {
         "State": "West Virginia",
@@ -1639,7 +1639,7 @@
       },
       {
         "State": "Wisconsin",
-        "Cases": 37
+        "Cases": 38
       },
       {
         "State": "Wyoming",
