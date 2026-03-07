@@ -1442,7 +1442,7 @@
     ]
   },
   {
-    "date": "2026-03-06",
+    "date": "2026-03-07",
     "week": "2026-W09",
     "data": [
       {
@@ -1451,11 +1451,11 @@
       },
       {
         "State": "Alaska",
-        "Cases": 4
+        "Cases": 5
       },
       {
         "State": "Arizona",
-        "Cases": 263
+        "Cases": 264
       },
       {
         "State": "Arkansas",
@@ -1463,11 +1463,11 @@
       },
       {
         "State": "California",
-        "Cases": 44
+        "Cases": 51
       },
       {
         "State": "Colorado",
-        "Cases": 36
+        "Cases": 39
       },
       {
         "State": "Connecticut",
@@ -1479,7 +1479,7 @@
       },
       {
         "State": "Florida",
-        "Cases": 115
+        "Cases": 117
       },
       {
         "State": "Georgia",
@@ -1527,7 +1527,7 @@
       },
       {
         "State": "Massachusetts",
-        "Cases": 0
+        "Cases": 2
       },
       {
         "State": "Michigan",
@@ -1535,7 +1535,7 @@
       },
       {
         "State": "Minnesota",
-        "Cases": 36
+        "Cases": 38
       },
       {
         "State": "Mississippi",
@@ -1543,7 +1543,7 @@
       },
       {
         "State": "Missouri",
-        "Cases": 6
+        "Cases": 7
       },
       {
         "State": "Montana",
@@ -1567,15 +1567,15 @@
       },
       {
         "State": "New Mexico",
-        "Cases": 101
+        "Cases": 106
       },
       {
         "State": "New York",
-        "Cases": 27
+        "Cases": 29
       },
       {
         "State": "North Carolina",
-        "Cases": 20
+        "Cases": 24
       },
       {
         "State": "North Dakota",
@@ -1591,7 +1591,7 @@
       },
       {
         "State": "Oregon",
-        "Cases": 6
+        "Cases": 7
       },
       {
         "State": "Pennsylvania",
@@ -1603,7 +1603,7 @@
       },
       {
         "State": "South Carolina",
-        "Cases": 982
+        "Cases": 993
       },
       {
         "State": "South Dakota",
@@ -1615,11 +1615,11 @@
       },
       {
         "State": "Texas",
-        "Cases": 824
+        "Cases": 896
       },
       {
         "State": "Utah",
-        "Cases": 337
+        "Cases": 372
       },
       {
         "State": "Vermont",
