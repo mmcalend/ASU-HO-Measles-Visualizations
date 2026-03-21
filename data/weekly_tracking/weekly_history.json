@@ -1442,7 +1442,7 @@
     ]
   },
   {
-    "date": "2026-03-20",
+    "date": "2026-03-21",
     "week": "2026-W11",
     "data": [
       {
@@ -1455,7 +1455,7 @@
       },
       {
         "State": "Arizona",
-        "Cases": 264
+        "Cases": 266
       },
       {
         "State": "Arkansas",
@@ -1467,7 +1467,7 @@
       },
       {
         "State": "Colorado",
-        "Cases": 42
+        "Cases": 45
       },
       {
         "State": "Connecticut",
@@ -1479,7 +1479,7 @@
       },
       {
         "State": "Florida",
-        "Cases": 124
+        "Cases": 130
       },
       {
         "State": "Georgia",
@@ -1531,7 +1531,7 @@
       },
       {
         "State": "Michigan",
-        "Cases": 29
+        "Cases": 31
       },
       {
         "State": "Minnesota",
@@ -1567,7 +1567,7 @@
       },
       {
         "State": "New Mexico",
-        "Cases": 109
+        "Cases": 113
       },
       {
         "State": "New York",
@@ -1583,7 +1583,7 @@
       },
       {
         "State": "Ohio",
-        "Cases": 49
+        "Cases": 51
       },
       {
         "State": "Oklahoma",
@@ -1603,11 +1603,11 @@
       },
       {
         "State": "South Carolina",
-        "Cases": 996
+        "Cases": 1000
       },
       {
         "State": "South Dakota",
-        "Cases": 23
+        "Cases": 24
       },
       {
         "State": "Tennessee",
@@ -1615,11 +1615,11 @@
       },
       {
         "State": "Texas",
-        "Cases": 896
+        "Cases": 950
       },
       {
         "State": "Utah",
-        "Cases": 419
+        "Cases": 464
       },
       {
         "State": "Vermont",
@@ -1631,7 +1631,7 @@
       },
       {
         "State": "Washington",
-        "Cases": 37
+        "Cases": 39
       },
       {
         "State": "West Virginia",
