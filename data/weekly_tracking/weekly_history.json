@@ -1442,7 +1442,7 @@
     ]
   },
   {
-    "date": "2026-04-03",
+    "date": "2026-04-04",
     "week": "2026-W13",
     "data": [
       {
@@ -1455,7 +1455,7 @@
       },
       {
         "State": "Arizona",
-        "Cases": 267
+        "Cases": 279
       },
       {
         "State": "Arkansas",
@@ -1467,7 +1467,7 @@
       },
       {
         "State": "Colorado",
-        "Cases": 46
+        "Cases": 48
       },
       {
         "State": "Connecticut",
@@ -1479,7 +1479,7 @@
       },
       {
         "State": "Florida",
-        "Cases": 136
+        "Cases": 137
       },
       {
         "State": "Georgia",
@@ -1495,7 +1495,7 @@
       },
       {
         "State": "Illinois",
-        "Cases": 17
+        "Cases": 18
       },
       {
         "State": "Indiana",
@@ -1535,7 +1535,7 @@
       },
       {
         "State": "Minnesota",
-        "Cases": 40
+        "Cases": 41
       },
       {
         "State": "Mississippi",
@@ -1547,7 +1547,7 @@
       },
       {
         "State": "Montana",
-        "Cases": 36
+        "Cases": 41
       },
       {
         "State": "Nebraska",
@@ -1567,7 +1567,7 @@
       },
       {
         "State": "New Mexico",
-        "Cases": 115
+        "Cases": 116
       },
       {
         "State": "New York",
@@ -1579,7 +1579,7 @@
       },
       {
         "State": "North Dakota",
-        "Cases": 60
+        "Cases": 63
       },
       {
         "State": "Ohio",
@@ -1591,7 +1591,7 @@
       },
       {
         "State": "Oregon",
-        "Cases": 9
+        "Cases": 10
       },
       {
         "State": "Pennsylvania",
@@ -1615,11 +1615,11 @@
       },
       {
         "State": "Texas",
-        "Cases": 973
+        "Cases": 978
       },
       {
         "State": "Utah",
-        "Cases": 507
+        "Cases": 567
       },
       {
         "State": "Vermont",
@@ -1627,11 +1627,11 @@
       },
       {
         "State": "Virginia",
-        "Cases": 21
+        "Cases": 22
       },
       {
         "State": "Washington",
-        "Cases": 39
+        "Cases": 42
       },
       {
         "State": "West Virginia",
