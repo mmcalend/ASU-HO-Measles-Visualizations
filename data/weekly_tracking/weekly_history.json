@@ -1442,7 +1442,7 @@
     ]
   },
   {
-    "date": "2026-06-12",
+    "date": "2026-06-13",
     "week": "2026-W23",
     "data": [
       {
@@ -1571,7 +1571,7 @@
       },
       {
         "State": "New York",
-        "Cases": 31
+        "Cases": 33
       },
       {
         "State": "North Carolina",
@@ -1595,7 +1595,7 @@
       },
       {
         "State": "Pennsylvania",
-        "Cases": 66
+        "Cases": 81
       },
       {
         "State": "Rhode Island",
@@ -1603,11 +1603,11 @@
       },
       {
         "State": "South Carolina",
-        "Cases": 1002
+        "Cases": 1003
       },
       {
         "State": "South Dakota",
-        "Cases": 25
+        "Cases": 26
       },
       {
         "State": "Tennessee",
@@ -1619,7 +1619,7 @@
       },
       {
         "State": "Utah",
-        "Cases": 675
+        "Cases": 679
       },
       {
         "State": "Vermont",
@@ -1627,7 +1627,7 @@
       },
       {
         "State": "Virginia",
-        "Cases": 96
+        "Cases": 116
       },
       {
         "State": "Washington",
