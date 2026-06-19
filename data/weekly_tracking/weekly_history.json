@@ -1442,7 +1442,7 @@
     ]
   },
   {
-    "date": "2026-06-18",
+    "date": "2026-06-19",
     "week": "2026-W24",
     "data": [
       {
@@ -1463,7 +1463,7 @@
       },
       {
         "State": "California",
-        "Cases": 73
+        "Cases": 74
       },
       {
         "State": "Colorado",
@@ -1471,7 +1471,7 @@
       },
       {
         "State": "Connecticut",
-        "Cases": 1
+        "Cases": 2
       },
       {
         "State": "Delaware",
@@ -1595,7 +1595,7 @@
       },
       {
         "State": "Pennsylvania",
-        "Cases": 81
+        "Cases": 83
       },
       {
         "State": "Rhode Island",
@@ -1619,7 +1619,7 @@
       },
       {
         "State": "Utah",
-        "Cases": 679
+        "Cases": 687
       },
       {
         "State": "Vermont",
@@ -1627,7 +1627,7 @@
       },
       {
         "State": "Virginia",
-        "Cases": 116
+        "Cases": 134
       },
       {
         "State": "Washington",
