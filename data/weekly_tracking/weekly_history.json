@@ -1442,7 +1442,7 @@
     ]
   },
   {
-    "date": "2026-07-02",
+    "date": "2026-07-03",
     "week": "2026-W26",
     "data": [
       {
@@ -1455,7 +1455,7 @@
       },
       {
         "State": "Arizona",
-        "Cases": 308
+        "Cases": 311
       },
       {
         "State": "Arkansas",
@@ -1471,7 +1471,7 @@
       },
       {
         "State": "Connecticut",
-        "Cases": 2
+        "Cases": 3
       },
       {
         "State": "Delaware",
@@ -1543,7 +1543,7 @@
       },
       {
         "State": "Missouri",
-        "Cases": 7
+        "Cases": 8
       },
       {
         "State": "Montana",
@@ -1595,7 +1595,7 @@
       },
       {
         "State": "Pennsylvania",
-        "Cases": 99
+        "Cases": 106
       },
       {
         "State": "Rhode Island",
@@ -1607,7 +1607,7 @@
       },
       {
         "State": "South Dakota",
-        "Cases": 26
+        "Cases": 27
       },
       {
         "State": "Tennessee",
@@ -1619,7 +1619,7 @@
       },
       {
         "State": "Utah",
-        "Cases": 696
+        "Cases": 703
       },
       {
         "State": "Vermont",
@@ -1627,7 +1627,7 @@
       },
       {
         "State": "Virginia",
-        "Cases": 134
+        "Cases": 150
       },
       {
         "State": "Washington",
