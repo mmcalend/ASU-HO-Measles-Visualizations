@@ -742,23 +742,6 @@ def create_rnaught_comparison():
         font=dict(size=FONT_SIZES['legend'], color="black", family=FONT_FAMILY),
         align="left"
     )
-
-    # Enhanced footer note with proper typography hierarchy
-    last_refreshed = datetime.now(timezone(timedelta(hours=-7))).strftime("%B %d, %Y at %I:%M %p MST")
-    fig.add_annotation(
-        text=(f"<b>Last refreshed:</b> {last_refreshed}<br>"),
-        xref="paper", yref="paper",
-        x=0.0, y=SPACING['footer_y'],
-        xanchor="left", yanchor="top",
-        showarrow=False,
-        font=dict(
-            size=FONT_SIZES['footer'],
-            color='gray',
-            family=FONT_FAMILY
-        ),
-        align="left"
-    )
-
     return fig
     return fig
 
