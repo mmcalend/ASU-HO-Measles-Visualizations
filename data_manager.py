@@ -36,7 +36,8 @@ class DataManager:
             'usmeasles': 'https://www.cdc.gov/wcms/vizdata/measles/MeaslesCasesYear.json',
             'usmap_cases': 'https://www.cdc.gov/wcms/vizdata/measles/MeaslesCasesMap.json',
             'vaccine_with': 'https://raw.githubusercontent.com/WorldHealthOrganization/epi50-vaccine-impact/refs/tags/v1.0/extern/raw/epi50_measles_vaccine.csv',
-            'vaccine_without': 'https://raw.githubusercontent.com/WorldHealthOrganization/epi50-vaccine-impact/refs/tags/v1.0/extern/raw/epi50_measles_no_vaccine.csv'
+            'vaccine_without': 'https://raw.githubusercontent.com/WorldHealthOrganization/epi50-vaccine-impact/refs/tags/v1.0/extern/raw/epi50_measles_no_vaccine.csv',
+            'timeline_dynamic': 'https://www.cdc.gov/wcms/vizdata/measles/MeaslesCasesHistory.json'  # For 2026 data
         }
         
         # Static data file paths (stored in repo)
@@ -179,6 +180,78 @@ class DataManager:
             # Convert to integer where possible
             df[year_col] = df[year_col].astype('Int64')  # Nullable integer
         return df
+
+    def merge_timeline_data(self, static_timeline, dynamic_2026_data):
+        """
+        Merge static timeline data with dynamic 2026 data from CDC API
+        
+        Args:
+            static_timeline (pd.DataFrame): Historical timeline from CSV (up to 2025)
+            dynamic_2026_data (pd.DataFrame): 2026 data from CDC API
+            
+        Returns:
+            pd.DataFrame: Merged timeline with historical + 2026 data
+        """
+        try:
+            # Make copies to avoid modifying originals
+            timeline = static_timeline.copy()
+            
+            if dynamic_2026_data is None or dynamic_2026_data.empty:
+                logging.warning("No dynamic 2026 data available, using static data only")
+                return timeline
+            
+            # Ensure Year column is numeric in both dataframes
+            timeline['Year'] = pd.to_numeric(timeline['Year'], errors='coerce')
+            
+            # Extract 2026 data from CDC JSON response
+            # The CDC API returns a list of years with case counts
+            data_2026 = dynamic_2026_data.copy()
+            
+            # Find the 2026 entry
+            # Typically the CDC JSON has 'year' and 'cases' columns
+            if 'year' in data_2026.columns:
+                data_2026.rename(columns={'year': 'Year'}, inplace=True)
+            if 'cases' in data_2026.columns:
+                data_2026.rename(columns={'cases': 'Cases'}, inplace=True)
+            
+            data_2026['Year'] = pd.to_numeric(data_2026['Year'], errors='coerce')
+            data_2026['Cases'] = pd.to_numeric(data_2026['Cases'], errors='coerce')
+            
+            # Get only 2026 data
+            data_2026 = data_2026[data_2026['Year'] == 2026].copy()
+            
+            if data_2026.empty:
+                logging.warning("No 2026 data found in CDC API response")
+                return timeline
+            
+            # Check if 2026 already exists in static data
+            timeline_2025_and_below = timeline[timeline['Year'] < 2026].copy()
+            
+            # Add 2026 data
+            # Ensure all required columns exist
+            for col in timeline.columns:
+                if col not in data_2026.columns:
+                    data_2026[col] = None
+            
+            # Keep only the columns that exist in the static timeline
+            data_2026 = data_2026[timeline.columns]
+            
+            # Combine: historical data + 2026
+            merged_timeline = pd.concat([timeline_2025_and_below, data_2026], ignore_index=True)
+            merged_timeline = merged_timeline.sort_values('Year').reset_index(drop=True)
+            
+            logging.info(f"Merged timeline: {len(timeline_2025_and_below)} historical rows + {len(data_2026)} 2026 row(s) = {len(merged_timeline)} total")
+            if not data_2026.empty and 'Cases' in data_2026.columns:
+                logging.info(f"2026 data from CDC API: {data_2026['Cases'].values[0]} cases")
+            
+            return merged_timeline
+            
+        except Exception as e:
+            logging.error(f"Error merging timeline data: {e}")
+            logging.error(f"Returning static data only")
+            import traceback
+            logging.error(traceback.format_exc())
+            return static_timeline
 
     def load_weekly_history(self):
         """Load weekly tracking history with enhanced debugging"""
@@ -408,6 +481,10 @@ class DataManager:
         
         # Download dynamic data with backup fallback
         for key, url in self.data_sources.items():
+            # Skip timeline_dynamic here - it will be handled separately
+            if key == 'timeline_dynamic':
+                continue
+                
             downloaded_data = self.download_data(url)
             
             if downloaded_data is not None:
@@ -440,16 +517,35 @@ class DataManager:
                     logging.error(f"No data available for: {key}")
                     return None
 
+        # **NEW: Fetch dynamic 2026 timeline data**
+        logging.info("Attempting to fetch dynamic 2026 timeline data from CDC API...")
+        dynamic_timeline = self.download_data(self.data_sources['timeline_dynamic'])
+        
+        if dynamic_timeline is not None:
+            if isinstance(dynamic_timeline, (dict, list)):
+                dynamic_timeline = pd.DataFrame(dynamic_timeline)
+            
+            if 'year' in dynamic_timeline.columns:
+                dynamic_timeline = self.standardize_year_columns(dynamic_timeline, 'year')
+            
+            logging.info(f"Successfully downloaded dynamic 2026 timeline data")
+            # Save backup of dynamic data
+            self.save_backup(dynamic_timeline, 'timeline_dynamic')
+        else:
+            logging.warning("Failed to download dynamic 2026 timeline data - will use static data only")
+            dynamic_timeline = None
+
         # Process and merge data
-        processed_data = self.process_data(data)
+        processed_data = self.process_data(data, dynamic_timeline)
         return processed_data
 
-    def process_data(self, raw_data):
+    def process_data(self, raw_data, dynamic_timeline=None):
         """
         Process and clean raw data with proper data type handling
         
         Args:
             raw_data (dict): Dictionary of raw datasets
+            dynamic_timeline (pd.DataFrame): Optional dynamic 2026 timeline data from CDC API
             
         Returns:
             dict: Dictionary of processed datasets
@@ -457,10 +553,17 @@ class DataManager:
         processed = {}
         
         try:
-            # Timeline data - already clean, ensure Year is numeric
+            # Timeline data - merge static with dynamic 2026 data
             timeline = raw_data['timeline'].copy()
             if 'Year' in timeline.columns:
                 timeline['Year'] = pd.to_numeric(timeline['Year'], errors='coerce')
+            
+            # Merge with dynamic 2026 data if available
+            if dynamic_timeline is not None and not dynamic_timeline.empty:
+                timeline = self.merge_timeline_data(timeline, dynamic_timeline)
+            else:
+                logging.info("Using static timeline data (no dynamic 2026 data)")
+            
             processed['timeline'] = timeline
             logging.info("Processed timeline data successfully")
             
