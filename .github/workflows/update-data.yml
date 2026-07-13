@@ -182,7 +182,7 @@ jobs:
           echo "No changes detected"
         fi
 
-      - name: Commit and push changes
+    - name: Commit and push changes
       if: steps.verify-changed-files.outputs.changed == 'true'
       run: |
         git config --local user.email "action@github.com"
@@ -199,8 +199,6 @@ jobs:
           git commit -m "Maintain visualizations (update failed, using existing) - $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
         fi
         
-        # Pull latest changes before pushing to avoid conflicts
-        git pull --rebase origin main
         git push
 
     - name: Setup Pages
