@@ -1442,7 +1442,7 @@
     ]
   },
   {
-    "date": "2026-08-21",
+    "date": "2026-08-22",
     "week": "2026-W33",
     "data": [
       {
@@ -1455,7 +1455,7 @@
       },
       {
         "State": "Arizona",
-        "Cases": 331
+        "Cases": 332
       },
       {
         "State": "Arkansas",
@@ -1463,7 +1463,7 @@
       },
       {
         "State": "California",
-        "Cases": 79
+        "Cases": 80
       },
       {
         "State": "Colorado",
@@ -1475,15 +1475,15 @@
       },
       {
         "State": "Delaware",
-        "Cases": 21
+        "Cases": 22
       },
       {
         "State": "Florida",
-        "Cases": 149
+        "Cases": 150
       },
       {
         "State": "Georgia",
-        "Cases": 16
+        "Cases": 17
       },
       {
         "State": "Hawaii",
@@ -1503,7 +1503,7 @@
       },
       {
         "State": "Iowa",
-        "Cases": 10
+        "Cases": 24
       },
       {
         "State": "Kansas",
@@ -1511,7 +1511,7 @@
       },
       {
         "State": "Kentucky",
-        "Cases": 17
+        "Cases": 36
       },
       {
         "State": "Louisiana",
@@ -1523,7 +1523,7 @@
       },
       {
         "State": "Maryland",
-        "Cases": 20
+        "Cases": 21
       },
       {
         "State": "Massachusetts",
@@ -1571,7 +1571,7 @@
       },
       {
         "State": "New York",
-        "Cases": 38
+        "Cases": 47
       },
       {
         "State": "North Carolina",
@@ -1583,7 +1583,7 @@
       },
       {
         "State": "Ohio",
-        "Cases": 87
+        "Cases": 120
       },
       {
         "State": "Oklahoma",
@@ -1591,11 +1591,11 @@
       },
       {
         "State": "Oregon",
-        "Cases": 44
+        "Cases": 49
       },
       {
         "State": "Pennsylvania",
-        "Cases": 296
+        "Cases": 387
       },
       {
         "State": "Rhode Island",
@@ -1639,7 +1639,7 @@
       },
       {
         "State": "Wisconsin",
-        "Cases": 40
+        "Cases": 74
       },
       {
         "State": "Wyoming",
