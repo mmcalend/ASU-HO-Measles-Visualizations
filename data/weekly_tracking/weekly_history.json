@@ -1442,7 +1442,7 @@
     ]
   },
   {
-    "date": "2026-09-01",
+    "date": "2026-09-02",
     "week": "2026-W35",
     "data": [
       {
@@ -1471,7 +1471,7 @@
       },
       {
         "State": "Connecticut",
-        "Cases": 3
+        "Cases": 4
       },
       {
         "State": "Delaware",
@@ -1479,11 +1479,11 @@
       },
       {
         "State": "Florida",
-        "Cases": 150
+        "Cases": 151
       },
       {
         "State": "Georgia",
-        "Cases": 17
+        "Cases": 19
       },
       {
         "State": "Hawaii",
@@ -1495,11 +1495,11 @@
       },
       {
         "State": "Illinois",
-        "Cases": 18
+        "Cases": 19
       },
       {
         "State": "Indiana",
-        "Cases": 12
+        "Cases": 13
       },
       {
         "State": "Iowa",
@@ -1511,7 +1511,7 @@
       },
       {
         "State": "Kentucky",
-        "Cases": 36
+        "Cases": 42
       },
       {
         "State": "Louisiana",
@@ -1523,7 +1523,7 @@
       },
       {
         "State": "Maryland",
-        "Cases": 21
+        "Cases": 34
       },
       {
         "State": "Massachusetts",
@@ -1571,7 +1571,7 @@
       },
       {
         "State": "New York",
-        "Cases": 47
+        "Cases": 51
       },
       {
         "State": "North Carolina",
@@ -1583,7 +1583,7 @@
       },
       {
         "State": "Ohio",
-        "Cases": 120
+        "Cases": 123
       },
       {
         "State": "Oklahoma",
@@ -1595,7 +1595,7 @@
       },
       {
         "State": "Pennsylvania",
-        "Cases": 387
+        "Cases": 459
       },
       {
         "State": "Rhode Island",
@@ -1611,11 +1611,11 @@
       },
       {
         "State": "Tennessee",
-        "Cases": 11
+        "Cases": 12
       },
       {
         "State": "Texas",
-        "Cases": 993
+        "Cases": 994
       },
       {
         "State": "Utah",
@@ -1627,11 +1627,11 @@
       },
       {
         "State": "Virginia",
-        "Cases": 182
+        "Cases": 184
       },
       {
         "State": "Washington",
-        "Cases": 66
+        "Cases": 67
       },
       {
         "State": "West Virginia",
@@ -1639,7 +1639,7 @@
       },
       {
         "State": "Wisconsin",
-        "Cases": 74
+        "Cases": 91
       },
       {
         "State": "Wyoming",
