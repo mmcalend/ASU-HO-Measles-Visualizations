@@ -1442,7 +1442,7 @@
     ]
   },
   {
-    "date": "2026-09-25",
+    "date": "2026-09-26",
     "week": "2026-W38",
     "data": [
       {
@@ -1479,7 +1479,7 @@
       },
       {
         "State": "Florida",
-        "Cases": 155
+        "Cases": 156
       },
       {
         "State": "Georgia",
@@ -1495,11 +1495,11 @@
       },
       {
         "State": "Illinois",
-        "Cases": 31
+        "Cases": 37
       },
       {
         "State": "Indiana",
-        "Cases": 25
+        "Cases": 28
       },
       {
         "State": "Iowa",
@@ -1507,11 +1507,11 @@
       },
       {
         "State": "Kansas",
-        "Cases": 93
+        "Cases": 94
       },
       {
         "State": "Kentucky",
-        "Cases": 63
+        "Cases": 77
       },
       {
         "State": "Louisiana",
@@ -1523,7 +1523,7 @@
       },
       {
         "State": "Maryland",
-        "Cases": 44
+        "Cases": 54
       },
       {
         "State": "Massachusetts",
@@ -1543,7 +1543,7 @@
       },
       {
         "State": "Missouri",
-        "Cases": 16
+        "Cases": 17
       },
       {
         "State": "Montana",
@@ -1571,7 +1571,7 @@
       },
       {
         "State": "New York",
-        "Cases": 74
+        "Cases": 95
       },
       {
         "State": "North Carolina",
@@ -1583,7 +1583,7 @@
       },
       {
         "State": "Ohio",
-        "Cases": 164
+        "Cases": 174
       },
       {
         "State": "Oklahoma",
@@ -1591,11 +1591,11 @@
       },
       {
         "State": "Oregon",
-        "Cases": 57
+        "Cases": 58
       },
       {
         "State": "Pennsylvania",
-        "Cases": 761
+        "Cases": 866
       },
       {
         "State": "Rhode Island",
@@ -1619,7 +1619,7 @@
       },
       {
         "State": "Utah",
-        "Cases": 716
+        "Cases": 724
       },
       {
         "State": "Vermont",
@@ -1639,7 +1639,7 @@
       },
       {
         "State": "Wisconsin",
-        "Cases": 194
+        "Cases": 200
       },
       {
         "State": "Wyoming",
