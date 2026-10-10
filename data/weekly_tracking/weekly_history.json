@@ -1442,7 +1442,7 @@
     ]
   },
   {
-    "date": "2026-10-09",
+    "date": "2026-10-10",
     "week": "2026-W40",
     "data": [
       {
@@ -1475,7 +1475,7 @@
       },
       {
         "State": "Delaware",
-        "Cases": 23
+        "Cases": 25
       },
       {
         "State": "Florida",
@@ -1499,19 +1499,19 @@
       },
       {
         "State": "Indiana",
-        "Cases": 34
+        "Cases": 36
       },
       {
         "State": "Iowa",
-        "Cases": 31
+        "Cases": 48
       },
       {
         "State": "Kansas",
-        "Cases": 95
+        "Cases": 96
       },
       {
         "State": "Kentucky",
-        "Cases": 107
+        "Cases": 109
       },
       {
         "State": "Louisiana",
@@ -1523,7 +1523,7 @@
       },
       {
         "State": "Maryland",
-        "Cases": 58
+        "Cases": 59
       },
       {
         "State": "Massachusetts",
@@ -1535,7 +1535,7 @@
       },
       {
         "State": "Minnesota",
-        "Cases": 47
+        "Cases": 50
       },
       {
         "State": "Mississippi",
@@ -1563,7 +1563,7 @@
       },
       {
         "State": "New Jersey",
-        "Cases": 13
+        "Cases": 14
       },
       {
         "State": "New Mexico",
@@ -1571,7 +1571,7 @@
       },
       {
         "State": "New York",
-        "Cases": 104
+        "Cases": 123
       },
       {
         "State": "North Carolina",
@@ -1583,7 +1583,7 @@
       },
       {
         "State": "Ohio",
-        "Cases": 184
+        "Cases": 187
       },
       {
         "State": "Oklahoma",
@@ -1595,7 +1595,7 @@
       },
       {
         "State": "Pennsylvania",
-        "Cases": 979
+        "Cases": 1121
       },
       {
         "State": "Rhode Island",
