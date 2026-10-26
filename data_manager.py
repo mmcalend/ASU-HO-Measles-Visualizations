@@ -49,10 +49,59 @@ class DataManager:
         
         # Weekly tracking file
         self.weekly_history_file = self.weekly_dir / 'weekly_history.json'
+
+        # Set by to_dataframe() from the CDC "lastUpdated" field
+        self.cdc_last_updated = None
+
+        # Feeds that were served from an old backup instead of a fresh download
+        self.stale_sources = []
         
         logging.info(f"DataManager initialized")
         logging.info(f"Tracking outbreak starting from year: {self.OUTBREAK_START_YEAR}")
         logging.info(f"Weekly history file path: {self.weekly_history_file.absolute()}")
+
+    # Columns each CDC feed must contain (lower-case) after flattening
+    REQUIRED_COLUMNS = {
+        'usmeasles': {'year', 'cases'},
+        'usmap_cases': {'geography', 'year', 'cases_calendar_year'},
+        'timeline_dynamic': {'year', 'cases'},
+    }
+
+    def to_dataframe(self, payload, key):
+        """
+        Flatten a JSON payload into a DataFrame.
+
+        CDC feeds are now wrapped in an envelope:
+            {"lastUpdated": "October 22, 2026", "data": [ {...}, {...} ]}
+        Passing that straight to pd.DataFrame() yields two columns
+        ('lastUpdated', 'data') instead of the real fields, so unwrap first.
+        """
+        if isinstance(payload, dict):
+            if payload.get('lastUpdated'):
+                logging.info(f"{key}: CDC lastUpdated = {payload['lastUpdated']}")
+                self.cdc_last_updated = payload['lastUpdated']
+            for k in ('data', 'rows', 'records', 'results', 'items'):
+                if isinstance(payload.get(k), list):
+                    payload = payload[k]
+                    break
+
+        if isinstance(payload, list):
+            df = pd.json_normalize(payload)
+        else:
+            df = pd.DataFrame(payload)
+
+        logging.info(f"{key}: shape={df.shape}, columns={df.columns.tolist()}")
+        return df
+
+    def has_required_columns(self, df, key):
+        """Return True if df has the columns this feed needs (case-insensitive)."""
+        required = self.REQUIRED_COLUMNS.get(key, set())
+        have = {str(c).lower() for c in df.columns}
+        missing = required - have
+        if missing:
+            logging.error(f"{key}: missing expected columns {sorted(missing)}; got {df.columns.tolist()}")
+            return False
+        return True
 
     def download_data(self, url, timeout=30):
         """
@@ -219,6 +268,9 @@ class DataManager:
             
             # Get only 2026 data
             data_2026 = data_2026[data_2026['Year'] == 2026].copy()
+            # The CDC feed lists each year once per 'filter' value (e.g. 1985-Present and
+            # 2000-Present), so 2026 appears more than once - keep a single row.
+            data_2026 = data_2026.drop_duplicates(subset='Year', keep='first')
             
             if data_2026.empty:
                 logging.warning("No 2026 data found in CDC API response")
@@ -324,6 +376,7 @@ class DataManager:
             snapshot = {
                 'date': datetime.now().strftime('%Y-%m-%d'),
                 'week': current_week,
+                'cdc_last_updated': self.cdc_last_updated,
                 'data': state_data[['State', 'Cases']].to_dict('records')
             }
             
@@ -486,32 +539,41 @@ class DataManager:
                 continue
                 
             downloaded_data = self.download_data(url)
-            
+
+            # Flatten JSON (unwrap the CDC envelope) and make sure the schema is what we expect
             if downloaded_data is not None:
-                # Convert to DataFrame - handle both dict and list formats from JSON APIs
                 if isinstance(downloaded_data, (dict, list)):
-                    downloaded_data = pd.DataFrame(downloaded_data)
-                
+                    downloaded_data = self.to_dataframe(downloaded_data, key)
+                if not self.has_required_columns(downloaded_data, key):
+                    logging.error(f"{key}: downloaded data has an unexpected schema - treating as failed download")
+                    downloaded_data = None
+
+            if downloaded_data is not None:
                 # Standardize year columns
                 if 'year' in downloaded_data.columns:
                     downloaded_data = self.standardize_year_columns(downloaded_data, 'year')
-                    
+
                 data[key] = downloaded_data
                 self.save_backup(downloaded_data, key)
                 logging.info(f"Downloaded fresh data: {key}")
-                
+
             else:
                 # Try to load from backup
                 backup_data = self.load_backup(key)
                 if backup_data is not None:
                     if isinstance(backup_data, (dict, list)):
-                        backup_data = pd.DataFrame(backup_data)
-                    
+                        backup_data = self.to_dataframe(backup_data, key)
+
+                    if not self.has_required_columns(backup_data, key):
+                        logging.error(f"Backup for {key} also has an unexpected schema")
+                        return None
+
                     # Standardize year columns in backup data too
-                    if isinstance(backup_data, pd.DataFrame) and 'year' in backup_data.columns:
+                    if 'year' in backup_data.columns:
                         backup_data = self.standardize_year_columns(backup_data, 'year')
-                        
+
                     data[key] = backup_data
+                    self.stale_sources.append(key)
                     logging.warning(f"Using backup data for: {key}")
                 else:
                     logging.error(f"No data available for: {key}")
@@ -523,14 +585,18 @@ class DataManager:
         
         if dynamic_timeline is not None:
             if isinstance(dynamic_timeline, (dict, list)):
-                dynamic_timeline = pd.DataFrame(dynamic_timeline)
-            
-            if 'year' in dynamic_timeline.columns:
-                dynamic_timeline = self.standardize_year_columns(dynamic_timeline, 'year')
-            
-            logging.info(f"Successfully downloaded dynamic 2026 timeline data")
-            # Save backup of dynamic data
-            self.save_backup(dynamic_timeline, 'timeline_dynamic')
+                dynamic_timeline = self.to_dataframe(dynamic_timeline, 'timeline_dynamic')
+
+            if not self.has_required_columns(dynamic_timeline, 'timeline_dynamic'):
+                logging.warning("Dynamic timeline has an unexpected schema - will use static data only")
+                dynamic_timeline = None
+            else:
+                if 'year' in dynamic_timeline.columns:
+                    dynamic_timeline = self.standardize_year_columns(dynamic_timeline, 'year')
+
+                logging.info(f"Successfully downloaded dynamic 2026 timeline data")
+                # Save backup of dynamic data
+                self.save_backup(dynamic_timeline, 'timeline_dynamic')
         else:
             logging.warning("Failed to download dynamic 2026 timeline data - will use static data only")
             dynamic_timeline = None
@@ -571,6 +637,8 @@ class DataManager:
             usmeasles = raw_data['usmeasles'].copy()
             if 'year' in usmeasles.columns:
                 usmeasles = self.standardize_year_columns(usmeasles, 'year')
+            if 'cases' in usmeasles.columns:
+                usmeasles['cases'] = pd.to_numeric(usmeasles['cases'], errors='coerce')
             processed['usmeasles'] = usmeasles
             logging.info("Processed US measles data successfully")
             
