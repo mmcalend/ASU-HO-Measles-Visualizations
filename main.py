@@ -1,339 +1,862 @@
-import os
-import sys
-import logging
-from pathlib import Path
-from datetime import datetime
 import pandas as pd
-from data_manager import DataManager
-from chart_generators import *
-from table_generators import *
+import numpy as np
+import json
+import os
+from datetime import datetime
+import requests
+from pathlib import Path
+import logging
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('measles_viz.log'),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def create_html_page(fig, filename):
-    """
-    Create a responsive HTML page for iframe embedding
-    Simple approach with CSS only
+class DataManager:
+    # Outbreak tracking constants
+    OUTBREAK_START_YEAR = 2025  # The year the current measles outbreak began
     
-    Args:
-        fig: Plotly figure object
-        filename (str): Output filename
-    """
-    # Generate the HTML with responsive config
-    html_content = fig.to_html(
-        include_plotlyjs='cdn',
-        div_id='chart',
-        config={'displayModeBar': False, 'responsive': True}
-    )
-    
-    # Simple responsive wrapper
-    full_html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Measles Data Visualization</title>
-    <style>
-        body {{
-            margin: 0;
-            padding: 0;
-            background-color: white;
-            font-family: Arial, sans-serif;
-        }}
+    def __init__(self, data_dir="data", backup_dir="data/backups"):
+        """
+        Initialize DataManager with data and backup directories
         
-        #chart {{
-            width: 100%;
-            height: 100vh;
-        }}
+        Args:
+            data_dir (str): Directory for current data files
+            backup_dir (str): Directory for backup data files
+        """
+        self.data_dir = Path(data_dir)
+        self.backup_dir = Path(backup_dir)
+        self.weekly_dir = Path(data_dir) / "weekly_tracking"
         
-        /* Scale down text on smaller screens */
-        @media screen and (max-width: 768px) {{
-            .plotly .xtick text,
-            .plotly .ytick text {{
-                font-size: 10px !important;
-            }}
-            
-            .plotly .legendtext {{
-                font-size: 10px !important;
-            }}
-            
-            .plotly .annotation-text {{
-                font-size: 9px !important;
-            }}
-        }}
+        # Create directories if they don't exist
+        self.data_dir.mkdir(exist_ok=True)
+        self.backup_dir.mkdir(exist_ok=True)
+        self.weekly_dir.mkdir(exist_ok=True)
         
-        @media screen and (max-width: 480px) {{
-            .plotly .xtick text,
-            .plotly .ytick text {{
-                font-size: 8px !important;
-            }}
-            
-            .plotly .legendtext {{
-                font-size: 8px !important;
-            }}
-            
-            .plotly .annotation-text {{
-                font-size: 7px !important;
-            }}
-        }}
-    </style>
-</head>
-<body>
-    {html_content}
-    
-    <script>
-        // Simple resize handler
-        window.addEventListener('resize', function() {{
-            var gd = document.getElementById('chart');
-            if (gd && typeof Plotly !== 'undefined') {{
-                Plotly.Plots.resize(gd);
-            }}
-        }});
-    </script>
-</body>
-</html>"""
-    
-    output_dir = Path('docs')
-    output_dir.mkdir(exist_ok=True)
-    
-    with open(output_dir / filename, 'w', encoding='utf-8') as f:
-        f.write(full_html)
-    
-    logging.info(f"Created {filename}")
-    
-def check_existing_visualizations():
-    """
-    Check if visualization files already exist in docs directory
-    
-    Returns:
-        bool: True if all critical files exist, False otherwise
-    """
-    output_dir = Path('docs')
-    critical_files = [
-        'timeline.html',
-        'recent_trends.html',
-        'rnaught_comparison.html',
-        'state_map.html',
-        'lives_saved.html'
-    ]
-    
-    if not output_dir.exists():
-        return False
-    
-    existing_files = [f for f in critical_files if (output_dir / f).exists()]
-    
-    if len(existing_files) == len(critical_files):
-        logging.info(f"All {len(critical_files)} critical visualization files exist")
+        # Data source URLs
+        self.data_sources = {
+            'usmeasles': 'https://www.cdc.gov/wcms/vizdata/measles/MeaslesCasesYear.json',
+            'usmap_cases': 'https://www.cdc.gov/wcms/vizdata/measles/MeaslesCasesMap.json',
+            'vaccine_with': 'https://raw.githubusercontent.com/WorldHealthOrganization/epi50-vaccine-impact/refs/tags/v1.0/extern/raw/epi50_measles_vaccine.csv',
+            'vaccine_without': 'https://raw.githubusercontent.com/WorldHealthOrganization/epi50-vaccine-impact/refs/tags/v1.0/extern/raw/epi50_measles_no_vaccine.csv',
+            'timeline_dynamic': 'https://www.cdc.gov/wcms/vizdata/measles/MeaslesCasesHistory.json'  # For 2026 data
+        }
+        
+        # Static data file paths (stored in repo)
+        self.static_files = {
+            'timeline': 'data/timeline.csv',
+            'mmr': 'data/MMRKCoverage.csv',
+            'mmr_map': 'data/MMRKCoverage25.csv'
+        }
+        
+        # Weekly tracking file
+        self.weekly_history_file = self.weekly_dir / 'weekly_history.json'
+
+        # Set by to_dataframe() from the CDC "lastUpdated" field
+        self.cdc_last_updated = None
+
+        # Feeds that were served from an old backup instead of a fresh download
+        self.stale_sources = []
+        
+        logging.info(f"DataManager initialized")
+        logging.info(f"Tracking outbreak starting from year: {self.OUTBREAK_START_YEAR}")
+        logging.info(f"Weekly history file path: {self.weekly_history_file.absolute()}")
+
+    # Columns each CDC feed must contain (lower-case) after flattening
+    REQUIRED_COLUMNS = {
+        'usmeasles': {'year', 'cases'},
+        'usmap_cases': {'geography', 'year', 'cases_calendar_year'},
+        'timeline_dynamic': {'year', 'cases'},
+    }
+
+    def to_dataframe(self, payload, key):
+        """
+        Flatten a JSON payload into a DataFrame.
+
+        CDC feeds are now wrapped in an envelope:
+            {"lastUpdated": "October 22, 2026", "data": [ {...}, {...} ]}
+        Passing that straight to pd.DataFrame() yields two columns
+        ('lastUpdated', 'data') instead of the real fields, so unwrap first.
+        """
+        if isinstance(payload, dict):
+            if payload.get('lastUpdated'):
+                logging.info(f"{key}: CDC lastUpdated = {payload['lastUpdated']}")
+                self.cdc_last_updated = payload['lastUpdated']
+            for k in ('data', 'rows', 'records', 'results', 'items'):
+                if isinstance(payload.get(k), list):
+                    payload = payload[k]
+                    break
+
+        if isinstance(payload, list):
+            df = pd.json_normalize(payload)
+        else:
+            df = pd.DataFrame(payload)
+
+        logging.info(f"{key}: shape={df.shape}, columns={df.columns.tolist()}")
+        return df
+
+    def has_required_columns(self, df, key):
+        """Return True if df has the columns this feed needs (case-insensitive)."""
+        required = self.REQUIRED_COLUMNS.get(key, set())
+        have = {str(c).lower() for c in df.columns}
+        missing = required - have
+        if missing:
+            logging.error(f"{key}: missing expected columns {sorted(missing)}; got {df.columns.tolist()}")
+            return False
         return True
-    else:
-        logging.info(f"Only {len(existing_files)}/{len(critical_files)} critical files exist")
-        return False
 
-def generate_visualizations(data):
-    """
-    Generate all visualizations from data with per-chart fallback
-    
-    Args:
-        data: Dictionary containing all datasets
+    def download_data(self, url, timeout=30):
+        """
+        Download data from URL with error handling
         
-    Returns:
-        dict: Status of each visualization (True/False/'fallback' for success)
-    """
-    status = {}
-    
-    # Create output directory
-    output_dir = Path('docs')
-    output_dir.mkdir(exist_ok=True)
-    
-    def safe_generate_chart(chart_name, chart_func, *args):
-        """Safely generate a chart with fallback to existing file"""
+        Args:
+            url (str): URL to download from
+            timeout (int): Request timeout in seconds
+            
+        Returns:
+            dict or pd.DataFrame: Downloaded data
+        """
         try:
-            fig = chart_func(*args)
-            temp_file = output_dir / f"{chart_name}_temp.html"
-            final_file = output_dir / f"{chart_name}.html"
+            response = requests.get(url, timeout=timeout)
+            response.raise_for_status()
             
-            # Generate to temp location first
-            create_html_page(fig, f"{chart_name}_temp.html")
-            
-            # Only replace existing file if generation succeeded
-            temp_file.rename(final_file)
-            logging.info(f"Successfully generated {chart_name}.html")
-            return True
-        except Exception as e:
-            logging.error(f"Failed to create {chart_name}: {e}")
-            # Check if old version exists
-            if (output_dir / f"{chart_name}.html").exists():
-                logging.warning(f"Keeping existing {chart_name}.html")
-                return 'fallback'
+            if url.endswith('.json'):
+                return response.json()
             else:
-                return False
-    
-    # Generate charts
-    logging.info("Generating charts...")
-    
-    status['southwest_weekly'] = safe_generate_chart(
-        'southwest_weekly', 
-        create_southwest_weekly_comparison, 
-        data['weekly_comparison']
-    )
-    
-    status['timeline'] = safe_generate_chart(
-        'timeline', 
-        create_measles_timeline, 
-        data['timeline']
-    )
-    
-    status['recent_trends'] = safe_generate_chart(
-        'recent_trends', 
-        create_recent_trends, 
-        data['usmeasles'], 
-        data.get('mmr', pd.DataFrame())
-    )
-    
-    status['rnaught_comparison'] = safe_generate_chart(
-        'rnaught_comparison', 
-        create_rnaught_comparison
-    )
-    
-    status['state_map'] = safe_generate_chart(
-        'state_map', 
-        create_bivariate_choropleth, 
-        data['usmap']
-    )
-    
-    status['lives_saved'] = safe_generate_chart(
-        'lives_saved', 
-        create_lives_saved_chart, 
-        data.get('vaccine_impact', pd.DataFrame())
-    )
-    
-    # Generate tables
-    logging.info("Generating tables...")
-    
-    status['timeline_table'] = safe_generate_chart(
-        'timeline_table', 
-        create_timeline_table, 
-        data['timeline']
-    )
-    
-    status['recent_trends_table'] = safe_generate_chart(
-        'recent_trends_table', 
-        create_recent_trends_table, 
-        data['usmeasles'], 
-        data.get('mmr', pd.DataFrame())
-    )
-    
-    status['rnaught_table'] = safe_generate_chart(
-        'rnaught_table', 
-        create_rnaught_table
-    )
-    
-    status['state_map_table'] = safe_generate_chart(
-        'state_map_table', 
-        create_state_map_table, 
-        data['usmap']
-    )
-    
-    status['lives_saved_table'] = safe_generate_chart(
-        'lives_saved_table', 
-        create_lives_saved_table, 
-        data.get('vaccine_impact', pd.DataFrame())
-    )
-    
-    return status
-def main():
-    """Main application function with improved fallback handling"""
-    logging.info("Starting Measles Data Visualization Generator")
-    
-    try:
-        # Check if existing visualizations are present
-        has_existing_viz = check_existing_visualizations()
-        
-        # Initialize data manager
-        data_manager = DataManager()
-        
-        # Fetch all data
-        logging.info("Fetching data from sources...")
-        data = data_manager.fetch_all_data()
-        
-        if data is None:
-            logging.error("Failed to fetch required data.")
-            
-            if has_existing_viz:
-                logging.warning("Keeping existing visualizations - no updates applied")
-                logging.info("Existing visualizations are still available")
-                sys.exit(0)  # Exit successfully to prevent workflow failure
-            else:
-                logging.error("No existing visualizations found. Cannot proceed.")
-                sys.exit(1)
-        
-        # Validate data
-        validation_results = data_manager.validate_data(data)
-        logging.info("Data validation results:")
-        for dataset, result in validation_results.items():
-            if result['valid']:
-                logging.info(f"  {dataset}: Valid ({result.get('rows', 0)} rows)")
-            else:
-                logging.warning(f"  {dataset}: Invalid - {result['error']}")
-        
-        # Check if any critical datasets failed validation
-        critical_datasets = ['timeline', 'usmeasles', 'usmap']
-        failed_critical = [ds for ds in critical_datasets 
-                          if not validation_results.get(ds, {}).get('valid', False)]
-        
-        if failed_critical:
-            logging.error(f"Critical datasets failed validation: {failed_critical}")
-            
-            if has_existing_viz:
-                logging.warning("Keeping existing visualizations due to validation failures")
-                logging.info("Existing visualizations are still available")
-                sys.exit(0)  # Exit successfully to prevent workflow failure
-            else:
-                logging.error("No existing visualizations to fall back on.")
-                sys.exit(1)
-        
-        # Generate all visualizations
-        status = generate_visualizations(data)
-        
-        # Log results
-        successful = sum(1 for v in status.values() if v)
-        total = len(status)
-        
-        logging.info(f"Successfully generated {successful}/{total} visualizations")
-        
-        if successful > 0:
-            logging.info(f"Output files created in docs directory")
-            
-            # List what succeeded and what failed
-            logging.info("Success status:")
-            for viz_name, success in status.items():
-                status_str = "✓" if success else "✗"
-                logging.info(f"  {status_str} {viz_name}")
-        
-        # Exit with success if at least some visualizations were created
-        if successful == 0 and not has_existing_viz:
-            logging.error("No visualizations were generated and no existing ones found")
-            sys.exit(1)
-        else:
-            sys.exit(0)
-        
-    except Exception as e:
-        logging.error(f"Critical error in main application: {e}")
-        
-        # Check if we can keep existing visualizations
-        if check_existing_visualizations():
-            logging.warning("Critical error occurred, but existing visualizations are preserved")
-            sys.exit(0)
-        else:
-            sys.exit(1)
+                # For CSV files
+                from io import StringIO
+                return pd.read_csv(StringIO(response.text))
+                
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Failed to download data from {url}: {e}")
+            return None
 
-if __name__ == "__main__":
-    main()
+    def save_backup(self, data, filename):
+        """
+        Save data as backup with timestamp
+        
+        Args:
+            data: Data to save
+            filename (str): Base filename for backup
+        """
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"{filename}_{timestamp}"
+        
+        backup_path = self.backup_dir / backup_filename
+        
+        try:
+            if isinstance(data, pd.DataFrame):
+                backup_path = backup_path.with_suffix('.csv')
+                data.to_csv(backup_path, index=False)
+            else:
+                backup_path = backup_path.with_suffix('.json')
+                with open(backup_path, 'w') as f:
+                    json.dump(data, f, indent=2)
+                    
+            logging.info(f"Backup saved: {backup_path}")
+            
+        except Exception as e:
+            logging.error(f"Failed to save backup {backup_filename}: {e}")
+
+    def load_backup(self, filename):
+        """
+        Load most recent backup file
+        
+        Args:
+            filename (str): Base filename to look for
+            
+        Returns:
+            Data from backup file or None if not found
+        """
+        # Find most recent backup
+        backup_files = list(self.backup_dir.glob(f"{filename}_*"))
+        
+        if not backup_files:
+            logging.warning(f"No backup found for {filename}")
+            return None
+            
+        # Sort by modification time, get most recent
+        most_recent = max(backup_files, key=lambda f: f.stat().st_mtime)
+        
+        try:
+            if most_recent.suffix == '.csv':
+                data = pd.read_csv(most_recent)
+            else:
+                with open(most_recent, 'r') as f:
+                    data = json.load(f)
+                    
+            logging.info(f"Loaded backup: {most_recent}")
+            return data
+            
+        except Exception as e:
+            logging.error(f"Failed to load backup {most_recent}: {e}")
+            return None
+
+    def load_static_data(self, filename):
+        """
+        Load static data file from repository
+        
+        Args:
+            filename (str): Path to static data file
+            
+        Returns:
+            pd.DataFrame: Loaded data
+        """
+        try:
+            filepath = Path(filename)
+            if filepath.suffix == '.csv':
+                return pd.read_csv(filepath)
+            else:
+                with open(filepath, 'r') as f:
+                    return json.load(f)
+                    
+        except Exception as e:
+            logging.error(f"Failed to load static file {filename}: {e}")
+            return None
+
+    def standardize_year_columns(self, df, year_col):
+        """
+        Standardize year columns to ensure consistent data types
+        
+        Args:
+            df (pd.DataFrame): DataFrame to process
+            year_col (str): Name of year column
+            
+        Returns:
+            pd.DataFrame: DataFrame with standardized year column
+        """
+        if year_col in df.columns:
+            # Convert to numeric, handling any string representations
+            df[year_col] = pd.to_numeric(df[year_col], errors='coerce')
+            # Convert to integer where possible
+            df[year_col] = df[year_col].astype('Int64')  # Nullable integer
+        return df
+
+    def merge_timeline_data(self, static_timeline, dynamic_2026_data):
+        """
+        Merge static timeline data with dynamic 2026 data from CDC API
+        
+        Args:
+            static_timeline (pd.DataFrame): Historical timeline from CSV (up to 2025)
+            dynamic_2026_data (pd.DataFrame): 2026 data from CDC API
+            
+        Returns:
+            pd.DataFrame: Merged timeline with historical + 2026 data
+        """
+        try:
+            # Make copies to avoid modifying originals
+            timeline = static_timeline.copy()
+            
+            if dynamic_2026_data is None or dynamic_2026_data.empty:
+                logging.warning("No dynamic 2026 data available, using static data only")
+                return timeline
+            
+            # Ensure Year column is numeric in both dataframes
+            timeline['Year'] = pd.to_numeric(timeline['Year'], errors='coerce')
+            
+            # Extract 2026 data from CDC JSON response
+            # The CDC API returns a list of years with case counts
+            data_2026 = dynamic_2026_data.copy()
+            
+            # Find the 2026 entry
+            # Typically the CDC JSON has 'year' and 'cases' columns
+            if 'year' in data_2026.columns:
+                data_2026.rename(columns={'year': 'Year'}, inplace=True)
+            if 'cases' in data_2026.columns:
+                data_2026.rename(columns={'cases': 'Cases'}, inplace=True)
+            
+            data_2026['Year'] = pd.to_numeric(data_2026['Year'], errors='coerce')
+            data_2026['Cases'] = pd.to_numeric(data_2026['Cases'], errors='coerce')
+            
+            # Get only 2026 data
+            data_2026 = data_2026[data_2026['Year'] == 2026].copy()
+            # The CDC feed lists each year once per 'filter' value (e.g. 1985-Present and
+            # 2000-Present), so 2026 appears more than once - keep a single row.
+            data_2026 = data_2026.drop_duplicates(subset='Year', keep='first')
+            
+            if data_2026.empty:
+                logging.warning("No 2026 data found in CDC API response")
+                return timeline
+            
+            # Check if 2026 already exists in static data
+            timeline_2025_and_below = timeline[timeline['Year'] < 2026].copy()
+            
+            # Add 2026 data
+            # Ensure all required columns exist
+            for col in timeline.columns:
+                if col not in data_2026.columns:
+                    data_2026[col] = None
+            
+            # Keep only the columns that exist in the static timeline
+            data_2026 = data_2026[timeline.columns]
+            
+            # Combine: historical data + 2026
+            merged_timeline = pd.concat([timeline_2025_and_below, data_2026], ignore_index=True)
+            merged_timeline = merged_timeline.sort_values('Year').reset_index(drop=True)
+            
+            logging.info(f"Merged timeline: {len(timeline_2025_and_below)} historical rows + {len(data_2026)} 2026 row(s) = {len(merged_timeline)} total")
+            if not data_2026.empty and 'Cases' in data_2026.columns:
+                logging.info(f"2026 data from CDC API: {data_2026['Cases'].values[0]} cases")
+            
+            return merged_timeline
+            
+        except Exception as e:
+            logging.error(f"Error merging timeline data: {e}")
+            logging.error(f"Returning static data only")
+            import traceback
+            logging.error(traceback.format_exc())
+            return static_timeline
+
+    def load_weekly_history(self):
+        """Load weekly tracking history with enhanced debugging"""
+        logging.info(f"Attempting to load weekly history from: {self.weekly_history_file.absolute()}")
+        logging.info(f"File exists: {self.weekly_history_file.exists()}")
+        logging.info(f"Current working directory: {Path.cwd()}")
+        
+        if self.weekly_history_file.exists():
+            try:
+                file_size = self.weekly_history_file.stat().st_size
+                logging.info(f"File size: {file_size} bytes")
+                
+                with open(self.weekly_history_file, 'r') as f:
+                    content = f.read()
+                    logging.info(f"File content length: {len(content)} characters")
+                    
+                    if len(content) == 0:
+                        logging.warning("Weekly history file is empty")
+                        return []
+                    
+                    data = json.loads(content)
+                    logging.info(f"Successfully parsed JSON with {len(data)} week entries")
+                    
+                    # Log details about the weeks
+                    for i, week_entry in enumerate(data):
+                        week = week_entry.get('week', 'unknown')
+                        date = week_entry.get('date', 'unknown')
+                        num_states = len(week_entry.get('data', []))
+                        logging.info(f"  Week {i+1}: {week} ({date}) with {num_states} states")
+                    
+                    return data
+                    
+            except json.JSONDecodeError as e:
+                logging.error(f"Failed to parse JSON in weekly history: {e}")
+                logging.error(f"File path: {self.weekly_history_file.absolute()}")
+                return []
+            except Exception as e:
+                logging.error(f"Failed to load weekly history: {e}")
+                logging.error(f"File path: {self.weekly_history_file.absolute()}")
+                import traceback
+                logging.error(traceback.format_exc())
+                return []
+        else:
+            logging.warning(f"Weekly history file does not exist at: {self.weekly_history_file.absolute()}")
+            logging.info(f"Directory exists: {self.weekly_dir.exists()}")
+            if self.weekly_dir.exists():
+                logging.info(f"Directory contents: {list(self.weekly_dir.iterdir())}")
+        
+        return []
+
+    def save_weekly_snapshot(self, state_data):
+        """
+        Save current week's state case data to history
+        
+        Args:
+            state_data: DataFrame with State and Cases columns
+        """
+        try:
+            history = self.load_weekly_history()
+            
+            current_week = datetime.now().strftime('%Y-W%U')
+            
+            # Check if we already have data for this week
+            existing_week_index = None
+            for i, snapshot in enumerate(history):
+                if snapshot.get('week') == current_week:
+                    existing_week_index = i
+                    break
+            
+            snapshot = {
+                'date': datetime.now().strftime('%Y-%m-%d'),
+                'week': current_week,
+                'cdc_last_updated': self.cdc_last_updated,
+                'data': state_data[['State', 'Cases']].to_dict('records')
+            }
+            
+            if existing_week_index is not None:
+                # Update existing week's data
+                history[existing_week_index] = snapshot
+                logging.info(f"Updated weekly snapshot for {current_week}")
+            else:
+                # Add new week's data
+                history.append(snapshot)
+                logging.info(f"Added new weekly snapshot for {current_week}")
+            
+            # Keep only last 8 weeks of history
+            if len(history) > 8:
+                history = history[-8:]
+            
+            # Ensure directory exists
+            self.weekly_dir.mkdir(parents=True, exist_ok=True)
+            
+            with open(self.weekly_history_file, 'w') as f:
+                json.dump(history, f, indent=2)
+            
+            logging.info(f"Successfully saved weekly history to {self.weekly_history_file.absolute()}")
+            logging.info(f"File size after save: {self.weekly_history_file.stat().st_size} bytes")
+            
+        except Exception as e:
+            logging.error(f"Failed to save weekly snapshot: {e}")
+            import traceback
+            logging.error(traceback.format_exc())
+
+    def get_weekly_comparison_data(self):
+        """
+        Get current and previous week data for comparison
+        
+        Returns:
+            dict: Dictionary with 'current' and 'previous' DataFrames
+        """
+        history = self.load_weekly_history()
+        
+        result = {
+            'current': pd.DataFrame(),
+            'previous': pd.DataFrame()
+        }
+        
+        if len(history) == 0:
+            logging.warning("No weekly history found - this may be first run")
+            return result
+        
+        if len(history) >= 1:
+            result['current'] = pd.DataFrame(history[-1]['data'])
+            logging.info(f"Loaded current week data from {history[-1]['week']} ({len(history[-1]['data'])} states)")
+        
+        if len(history) >= 2:
+            result['previous'] = pd.DataFrame(history[-2]['data'])
+            logging.info(f"Loaded previous week data from {history[-2]['week']} ({len(history[-2]['data'])} states)")
+        else:
+            logging.warning("No previous week data available yet")
+        
+        return result
+
+    def get_fresh_state_data(self, usmap_cases_raw):
+        """
+        Extract fresh current state data from the raw CDC download
+        This aggregates all outbreak years (2025+) for cumulative totals
+        
+        Args:
+            usmap_cases_raw: Raw DataFrame from CDC MeaslesCasesMap.json
+            
+        Returns:
+            pd.DataFrame: Fresh state data with State and Cases columns (cumulative since outbreak)
+        """
+        try:
+            state_data = usmap_cases_raw.copy()
+            
+            # **CRITICAL FIX: Filter to outbreak data (2025+) FIRST, before any processing**
+            if 'year' in state_data.columns:
+                state_data['year'] = pd.to_numeric(state_data['year'], errors='coerce')
+                available_years = state_data['year'].dropna().unique()
+                logging.info(f"Years available in raw CDC data: {sorted(available_years)}")
+                
+                # Filter to outbreak data (2025 onwards for ongoing outbreak)
+                state_data_outbreak = state_data[state_data['year'] >= self.OUTBREAK_START_YEAR].copy()
+                
+                if len(state_data_outbreak) == 0:
+                    logging.warning(f"No data found since outbreak start ({self.OUTBREAK_START_YEAR}). Using most recent year.")
+                    most_recent_year = state_data['year'].max()
+                    logging.info(f"Most recent year: {most_recent_year}")
+                    state_data = state_data[state_data['year'] == most_recent_year].copy()
+                else:
+                    logging.info(f"Filtered to outbreak data ({self.OUTBREAK_START_YEAR}+): {len(state_data_outbreak)} rows")
+                    state_data = state_data_outbreak
+            else:
+                logging.warning("No 'year' column in raw CDC data - using all data as-is")
+            
+            # Rename columns for consistency
+            if 'geography' in state_data.columns:
+                state_data.rename(columns={'geography': 'State'}, inplace=True)
+            
+            # Find and rename the cases column
+            cases_col = next((c for c in ['cases_calendar_year', 'cases', 'Cases'] if c in state_data.columns), None)
+            if cases_col:
+                state_data.rename(columns={cases_col: 'Cases'}, inplace=True)
+                state_data['Cases'] = pd.to_numeric(state_data['Cases'], errors='coerce').fillna(0).astype(int)
+            
+            # Filter out non-states
+            state_data = state_data[~state_data['State'].isin(['New York City', 'District of Columbia'])].copy()
+            
+            # Keep only State and Cases columns, then aggregate
+            if 'State' in state_data.columns and 'Cases' in state_data.columns:
+                # **AGGREGATE CASES BY STATE** - Sum across all years in the outbreak
+                state_data = state_data.groupby('State', as_index=False)['Cases'].sum()
+                
+                logging.info(f"Aggregated outbreak cases across years for {len(state_data)} states")
+                
+                # Log some sample data for verification
+                total_cases = state_data['Cases'].sum()
+                states_with_cases = state_data[state_data['Cases'] > 0]
+                logging.info(f"Total outbreak cases across all states: {total_cases}")
+                logging.info(f"States with cases: {len(states_with_cases)}")
+                if len(states_with_cases) > 0:
+                    logging.info(f"Sample data:\n{states_with_cases.head(10).to_string()}")
+                
+                return state_data
+            else:
+                logging.error("Missing required columns in state data")
+                return pd.DataFrame()
+                
+        except Exception as e:
+            logging.error(f"Failed to extract fresh state data: {e}")
+            import traceback
+            logging.error(traceback.format_exc())
+            return pd.DataFrame()
+
+    def fetch_all_data(self):
+        """
+        Fetch all required data sources with fallback to backups
+        
+        Returns:
+            dict: Dictionary containing all loaded datasets
+        """
+        data = {}
+        
+        # Load static files
+        for key, filepath in self.static_files.items():
+            static_data = self.load_static_data(filepath)
+            if static_data is not None:
+                # Standardize year columns if they exist
+                if key == 'mmr' and 'year' in static_data.columns:
+                    static_data = self.standardize_year_columns(static_data, 'year')
+                data[key] = static_data
+                logging.info(f"Loaded static data: {key}")
+            else:
+                logging.error(f"Failed to load static data: {key}")
+                return None
+        
+        # Download dynamic data with backup fallback
+        for key, url in self.data_sources.items():
+            # Skip timeline_dynamic here - it will be handled separately
+            if key == 'timeline_dynamic':
+                continue
+                
+            downloaded_data = self.download_data(url)
+
+            # Flatten JSON (unwrap the CDC envelope) and make sure the schema is what we expect
+            if downloaded_data is not None:
+                if isinstance(downloaded_data, (dict, list)):
+                    downloaded_data = self.to_dataframe(downloaded_data, key)
+                if not self.has_required_columns(downloaded_data, key):
+                    logging.error(f"{key}: downloaded data has an unexpected schema - treating as failed download")
+                    downloaded_data = None
+
+            if downloaded_data is not None:
+                # Standardize year columns
+                if 'year' in downloaded_data.columns:
+                    downloaded_data = self.standardize_year_columns(downloaded_data, 'year')
+
+                data[key] = downloaded_data
+                self.save_backup(downloaded_data, key)
+                logging.info(f"Downloaded fresh data: {key}")
+
+            else:
+                # Try to load from backup
+                backup_data = self.load_backup(key)
+                if backup_data is not None:
+                    if isinstance(backup_data, (dict, list)):
+                        backup_data = self.to_dataframe(backup_data, key)
+
+                    if not self.has_required_columns(backup_data, key):
+                        logging.error(f"Backup for {key} also has an unexpected schema")
+                        return None
+
+                    # Standardize year columns in backup data too
+                    if 'year' in backup_data.columns:
+                        backup_data = self.standardize_year_columns(backup_data, 'year')
+
+                    data[key] = backup_data
+                    self.stale_sources.append(key)
+                    logging.warning(f"Using backup data for: {key}")
+                else:
+                    logging.error(f"No data available for: {key}")
+                    return None
+
+        # **NEW: Fetch dynamic 2026 timeline data**
+        logging.info("Attempting to fetch dynamic 2026 timeline data from CDC API...")
+        dynamic_timeline = self.download_data(self.data_sources['timeline_dynamic'])
+        
+        if dynamic_timeline is not None:
+            if isinstance(dynamic_timeline, (dict, list)):
+                dynamic_timeline = self.to_dataframe(dynamic_timeline, 'timeline_dynamic')
+
+            if not self.has_required_columns(dynamic_timeline, 'timeline_dynamic'):
+                logging.warning("Dynamic timeline has an unexpected schema - will use static data only")
+                dynamic_timeline = None
+            else:
+                if 'year' in dynamic_timeline.columns:
+                    dynamic_timeline = self.standardize_year_columns(dynamic_timeline, 'year')
+
+                logging.info(f"Successfully downloaded dynamic 2026 timeline data")
+                # Save backup of dynamic data
+                self.save_backup(dynamic_timeline, 'timeline_dynamic')
+        else:
+            logging.warning("Failed to download dynamic 2026 timeline data - will use static data only")
+            dynamic_timeline = None
+
+        # Process and merge data
+        processed_data = self.process_data(data, dynamic_timeline)
+        return processed_data
+
+    def process_data(self, raw_data, dynamic_timeline=None):
+        """
+        Process and clean raw data with proper data type handling
+        
+        Args:
+            raw_data (dict): Dictionary of raw datasets
+            dynamic_timeline (pd.DataFrame): Optional dynamic 2026 timeline data from CDC API
+            
+        Returns:
+            dict: Dictionary of processed datasets
+        """
+        processed = {}
+        
+        try:
+            # Timeline data - merge static with dynamic 2026 data
+            timeline = raw_data['timeline'].copy()
+            if 'Year' in timeline.columns:
+                timeline['Year'] = pd.to_numeric(timeline['Year'], errors='coerce')
+            
+            # Merge with dynamic 2026 data if available
+            if dynamic_timeline is not None and not dynamic_timeline.empty:
+                timeline = self.merge_timeline_data(timeline, dynamic_timeline)
+            else:
+                logging.info("Using static timeline data (no dynamic 2026 data)")
+            
+            processed['timeline'] = timeline
+            logging.info("Processed timeline data successfully")
+            
+            # US Measles data - ensure year is numeric
+            usmeasles = raw_data['usmeasles'].copy()
+            if 'year' in usmeasles.columns:
+                usmeasles = self.standardize_year_columns(usmeasles, 'year')
+            if 'cases' in usmeasles.columns:
+                usmeasles['cases'] = pd.to_numeric(usmeasles['cases'], errors='coerce')
+            processed['usmeasles'] = usmeasles
+            logging.info("Processed US measles data successfully")
+            
+            # MMR Coverage data - ensure year is numeric
+            mmr = raw_data['mmr'].copy()
+            if 'year' in mmr.columns:
+                mmr = self.standardize_year_columns(mmr, 'year')
+            processed['mmr'] = mmr
+            logging.info("Processed MMR data successfully")
+            
+            # Process map data with proper data type handling
+            logging.info("Processing map data...")
+            mmr_map = raw_data['mmr_map'].rename(columns={'Geography': 'geography'})
+            usmap_cases = raw_data['usmap_cases'].copy()
+            
+            # **CRITICAL: Extract fresh state data BEFORE any processing**
+            fresh_state_data = self.get_fresh_state_data(usmap_cases)
+            logging.info(f"Extracted fresh state data: {len(fresh_state_data)} states")
+            
+            # Ensure consistent data types for merge
+            if 'year' in mmr_map.columns:
+                mmr_map = self.standardize_year_columns(mmr_map, 'year')
+            if 'year' in usmap_cases.columns:
+                usmap_cases = self.standardize_year_columns(usmap_cases, 'year')
+            
+            # Merge map data
+            usmap = usmap_cases.merge(mmr_map, on='geography', how='left')
+            
+            # Filter out NYC and DC as they are not states
+            usmap = usmap[~usmap['geography'].isin(['New York City', 'District of Columbia'])].copy()
+            
+            # Handle year filtering - check both possible year columns
+            year_col = 'year_x' if 'year_x' in usmap.columns else 'year'
+            if year_col in usmap.columns:
+                # Convert year column to numeric
+                usmap[year_col] = pd.to_numeric(usmap[year_col], errors='coerce')
+                available_years = usmap[year_col].dropna().unique()
+                logging.info(f"Available years in merged data: {sorted(available_years)}")
+                
+                # Filter to outbreak data (cumulative since 2025)
+                usmap_outbreak = usmap[usmap[year_col] >= self.OUTBREAK_START_YEAR].copy()
+                logging.info(f"After filtering to outbreak data ({self.OUTBREAK_START_YEAR}+): {len(usmap_outbreak)} rows")
+                
+                if len(usmap_outbreak) == 0:
+                    logging.warning(f"No data found since outbreak start ({self.OUTBREAK_START_YEAR}). Checking for most recent year instead...")
+                    if len(usmap) > 0:
+                        most_recent_year = usmap[year_col].max()
+                        logging.info(f"Most recent year available: {most_recent_year}")
+                        usmap_outbreak = usmap[usmap[year_col] == most_recent_year].copy()
+                        logging.info(f"Using {most_recent_year} data: {len(usmap_outbreak)} rows")
+                
+                usmap = usmap_outbreak
+            
+            # Convert Estimate (%) to numeric and handle any string values
+            if 'Estimate (%)' in usmap.columns:
+                usmap['Estimate (%)'] = pd.to_numeric(usmap['Estimate (%)'], errors='coerce')
+            
+            # Ensure cases column is numeric for calculations
+            cases_col = next((c for c in ['cases_calendar_year', 'cases', 'Cases'] if c in usmap.columns), None)
+            if cases_col and cases_col in usmap.columns:
+                usmap[cases_col] = pd.to_numeric(usmap[cases_col], errors='coerce')
+            
+            # **CRITICAL: Aggregate cases by state across multiple years for the map**
+            if cases_col:
+                # Sum cases by geography (state) across all years
+                cases_by_state = usmap.groupby('geography', as_index=False)[cases_col].sum()
+                
+                # Keep the most recent vaccination coverage data per state
+                vaccination_data = usmap.sort_values(year_col, ascending=False).drop_duplicates('geography', keep='first')
+                
+                # Merge aggregated cases with vaccination coverage
+                usmap = cases_by_state.merge(
+                    vaccination_data[['geography', 'Estimate (%)']],
+                    on='geography',
+                    how='left'
+                )
+                
+                logging.info(f"Aggregated map data: {len(usmap)} states with cumulative cases since {self.OUTBREAK_START_YEAR}")
+                
+                # Log verification
+                total_outbreak_cases = usmap[cases_col].sum()
+                states_with_cases = len(usmap[usmap[cases_col] > 0])
+                logging.info(f"Total outbreak cases on map: {total_outbreak_cases}")
+                logging.info(f"Number of states with cases on map: {states_with_cases}")
+            
+            processed['usmap'] = usmap
+            logging.info("Processed map data successfully")
+            
+            # **CRITICAL FIX: Load historical comparison data BEFORE saving new snapshot**
+            # This ensures we get the previous week's data before overwriting
+            historical_comparison = self.get_weekly_comparison_data()
+            
+            # Save the FRESH state data as weekly snapshot AFTER loading history
+            try:
+                if not fresh_state_data.empty:
+                    self.save_weekly_snapshot(fresh_state_data)
+                    logging.info(f"Saved fresh weekly snapshot with {len(fresh_state_data)} states")
+                else:
+                    logging.warning("Fresh state data is empty - not saving snapshot")
+            except Exception as e:
+                logging.error(f"Failed to save weekly snapshot (non-critical): {e}")
+            
+            # **CRITICAL FIX: Build the comparison using FRESH current + HISTORICAL previous**
+            processed['weekly_comparison'] = {
+                'current': fresh_state_data,  # Fresh from CDC API (cumulative)
+                'previous': historical_comparison.get('previous', pd.DataFrame())  # Previous week from history
+            }
+            
+            logging.info(f"Weekly comparison ready: Current={len(fresh_state_data)} states, Previous={len(processed['weekly_comparison']['previous'])} states")
+            
+            # Process vaccine impact data
+            logging.info("Processing vaccine impact data...")
+            vax_df = raw_data['vaccine_with'].copy()
+            no_vax_df = raw_data['vaccine_without'].copy()
+            
+            # Ensure year columns are consistent
+            if 'year' in vax_df.columns:
+                vax_df = self.standardize_year_columns(vax_df, 'year')
+            if 'year' in no_vax_df.columns:
+                no_vax_df = self.standardize_year_columns(no_vax_df, 'year')
+            
+            # Filter for USA data
+            vax_usa = vax_df[vax_df['iso'] == 'USA'].copy()
+            no_vax_usa = no_vax_df[no_vax_df['iso'] == 'USA'].copy()
+            
+            # Merge vaccine data
+            merged_vaccine = pd.merge(no_vax_usa, vax_usa, on='year', suffixes=('_no_vaccine', '_vaccine'))
+            
+            # Calculate lives saved - ensure numeric columns
+            numeric_cols = ['mean_deaths_no_vaccine', 'mean_deaths_vaccine', 
+                           'ub_deaths_no_vaccine', 'lb_deaths_vaccine',
+                           'lb_deaths_no_vaccine', 'ub_deaths_vaccine']
+            
+            for col in numeric_cols:
+                if col in merged_vaccine.columns:
+                    merged_vaccine[col] = pd.to_numeric(merged_vaccine[col], errors='coerce')
+            
+            merged_vaccine['lives_saved'] = (merged_vaccine['mean_deaths_no_vaccine'] - 
+                                           merged_vaccine['mean_deaths_vaccine'])
+            merged_vaccine['lives_saved_ub'] = (merged_vaccine['ub_deaths_no_vaccine'] - 
+                                              merged_vaccine['lb_deaths_vaccine'])
+            merged_vaccine['lives_saved_lb'] = (merged_vaccine['lb_deaths_no_vaccine'] - 
+                                              merged_vaccine['ub_deaths_vaccine'])
+            merged_vaccine = merged_vaccine.sort_values('year')
+            
+            processed['vaccine_impact'] = merged_vaccine
+            logging.info("Processed vaccine impact data successfully")
+            
+            return processed
+            
+        except Exception as e:
+            logging.error(f"Error in process_data: {e}")
+            logging.error(f"Available keys in raw_data: {list(raw_data.keys())}")
+            for key, value in raw_data.items():
+                logging.error(f"{key}: type={type(value)}, shape={getattr(value, 'shape', 'No shape')}")
+            import traceback
+            logging.error(traceback.format_exc())
+            return None
+
+    def validate_data(self, data):
+        """
+        Validate data quality and completeness
+        
+        Args:
+            data (dict): Dictionary of datasets to validate
+            
+        Returns:
+            dict: Validation results
+        """
+        validation_results = {}
+        
+        required_datasets = ['timeline', 'usmeasles', 'mmr', 'usmap', 'vaccine_impact', 'weekly_comparison']
+        
+        for dataset_name in required_datasets:
+            if dataset_name not in data:
+                validation_results[dataset_name] = {'valid': False, 'error': 'Dataset missing'}
+                continue
+            
+            if dataset_name == 'weekly_comparison':
+                # Special validation for weekly comparison dict
+                weekly_data = data[dataset_name]
+                if 'current' not in weekly_data or weekly_data['current'].empty:
+                    validation_results[dataset_name] = {'valid': False, 'error': 'No current week data'}
+                else:
+                    validation_results[dataset_name] = {'valid': True, 'rows': len(weekly_data['current'])}
+                continue
+                
+            df = data[dataset_name]
+            
+            if df.empty:
+                validation_results[dataset_name] = {'valid': False, 'error': 'Dataset is empty'}
+                continue
+                
+            # Dataset-specific validation
+            if dataset_name == 'timeline':
+                required_cols = ['Year', 'Cases']
+                missing_cols = [col for col in required_cols if col not in df.columns]
+                if missing_cols:
+                    validation_results[dataset_name] = {
+                        'valid': False, 
+                        'error': f'Missing columns: {missing_cols}'
+                    }
+                else:
+                    validation_results[dataset_name] = {'valid': True, 'rows': len(df)}
+                    
+            elif dataset_name == 'usmeasles':
+                required_cols = ['year', 'cases']
+                missing_cols = [col for col in required_cols if col not in df.columns]
+                if missing_cols:
+                    validation_results[dataset_name] = {
+                        'valid': False, 
+                        'error': f'Missing columns: {missing_cols}'
+                    }
+                else:
+                    validation_results[dataset_name] = {'valid': True, 'rows': len(df)}
+                    
+            # Add more specific validation as needed
+            else:
+                validation_results[dataset_name] = {'valid': True, 'rows': len(df)}
+                
+        return validation_results
