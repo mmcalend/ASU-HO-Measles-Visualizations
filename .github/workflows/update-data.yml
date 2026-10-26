@@ -1,4 +1,4 @@
-name: Update Measles Data Visualization
+name: Update Measles Data Visualization 
 
 on:
   schedule:
