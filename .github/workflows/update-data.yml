@@ -3,7 +3,7 @@ name: Update Measles Data Visualization
 on:
   schedule:
     - cron: '0 6 * * *'
-  
+
   # Allow manual triggering
   workflow_dispatch:
     inputs:
@@ -20,7 +20,7 @@ on:
 jobs:
   update-visualizations:
     runs-on: ubuntu-latest
-    
+
     permissions:
       contents: write  # Allow pushing changes back to repo
       pages: write     # Allow deploying to GitHub Pages
@@ -33,7 +33,7 @@ jobs:
         fetch-depth: 0  # Fetch full history for proper git operations
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
         cache: 'pip'
@@ -51,47 +51,37 @@ jobs:
 
     - name: Debug - Check weekly history BEFORE running
       run: |
-        echo "=== Current working directory ==="
-        pwd
-        
-        echo ""
-        echo "=== Repository structure ==="
-        ls -la
-        
-        echo ""
-        echo "=== Data directory ==="
-        ls -la data/ || echo "data/ directory doesn't exist"
-        
-        echo ""
         echo "=== Weekly tracking directory ==="
         ls -la data/weekly_tracking/ || echo "data/weekly_tracking/ directory doesn't exist"
-        
+
         echo ""
         echo "=== Checking for weekly history file ==="
         if [ -f "data/weekly_tracking/weekly_history.json" ]; then
           echo "✓ File EXISTS"
           echo "Size: $(wc -c < data/weekly_tracking/weekly_history.json) bytes"
-          echo "Lines: $(wc -l < data/weekly_tracking/weekly_history.json)"
-          echo ""
-          echo "First 500 characters:"
-          head -c 500 data/weekly_tracking/weekly_history.json
-          echo ""
-          echo ""
-          echo "Validating JSON:"
-          python3 -c "import json; import sys; data = json.load(open('data/weekly_tracking/weekly_history.json')); print(f'✓ Valid JSON with {len(data)} week entries'); [print(f'  Week {i+1}: {week.get(\"week\", \"unknown\")} ({week.get(\"date\", \"unknown\")}) - {len(week.get(\"data\", []))} states') for i, week in enumerate(data)]" || echo "✗ JSON validation failed"
+          python3 - <<'PY' || echo "✗ JSON validation failed"
+        import json
+        data = json.load(open('data/weekly_tracking/weekly_history.json'))
+        print(f"✓ Valid JSON with {len(data)} week entries")
+        for i, week in enumerate(data):
+            states = week.get('data', [])
+            total = sum(s.get('Cases', 0) for s in states)
+            print(f"  Week {i+1}: {week.get('week', 'unknown')} ({week.get('date', 'unknown')}) - {len(states)} states, {total} total cases")
+        PY
         else
           echo "✗ File DOES NOT EXIST"
         fi
 
     - name: Backup existing visualizations
       run: |
-        # Create a backup of current visualizations before attempting update
+        # Keep a copy of the current visualizations so a bad run can be rolled back
+        # within this job. (data/viz_backups is gitignored, so it only lives for this run.)
         if [ -d "docs" ] && [ "$(ls -A docs)" ]; then
           mkdir -p data/viz_backups
           timestamp=$(date +%Y%m%d_%H%M%S)
           cp -r docs "data/viz_backups/docs_${timestamp}"
           echo "Backed up existing visualizations to data/viz_backups/docs_${timestamp}"
-          
+
           # Keep only last 5 visualization backups
           cd data/viz_backups
           ls -t | tail -n +6 | xargs -r rm -rf
@@ -102,7 +92,7 @@ jobs:
 
     - name: Run data update and visualization generation
       id: update
-      continue-on-error: true  # Don't fail workflow if update fails
+      continue-on-error: true  # Still deploy the existing site if the update crashes
       run: |
         python main.py
       env:
@@ -111,22 +101,20 @@ jobs:
     - name: Debug - Check weekly history AFTER running
       if: always()
       run: |
-        echo "=== After Python execution ==="
         if [ -f "data/weekly_tracking/weekly_history.json" ]; then
-          echo "✓ File EXISTS"
-          echo "Size: $(wc -c < data/weekly_tracking/weekly_history.json) bytes"
-          echo "Lines: $(wc -l < data/weekly_tracking/weekly_history.json)"
-          echo ""
-          echo "Last 1000 characters:"
-          tail -c 1000 data/weekly_tracking/weekly_history.json
-          echo ""
-          echo ""
-          echo "Validating JSON:"
-          python3 -c "import json; data = json.load(open('data/weekly_tracking/weekly_history.json')); print(f'✓ Valid JSON with {len(data)} week entries'); [print(f'  Week {i+1}: {week.get(\"week\", \"unknown\")} ({week.get(\"date\", \"unknown\")}) - {len(week.get(\"data\", []))} states, {sum(s.get(\"Cases\", 0) for s in week.get(\"data\", []))} total cases') for i, week in enumerate(data)]" || echo "✗ JSON validation failed"
+          python3 - <<'PY' || echo "✗ JSON validation failed"
+        import json
+        data = json.load(open('data/weekly_tracking/weekly_history.json'))
+        print(f"✓ Valid JSON with {len(data)} week entries")
+        for i, week in enumerate(data):
+            states = week.get('data', [])
+            total = sum(s.get('Cases', 0) for s in states)
+            print(f"  Week {i+1}: {week.get('week', 'unknown')} ({week.get('date', 'unknown')}, CDC lastUpdated: {week.get('cdc_last_updated', 'n/a')}) - {len(states)} states, {total} total cases")
+        PY
         else
           echo "✗ File DOES NOT EXIST"
         fi
-        
+
         echo ""
         echo "=== Docs directory ==="
         ls -lh docs/ || echo "Docs directory empty/missing"
@@ -134,20 +122,36 @@ jobs:
     - name: Check update status
       id: check_status
       run: |
-        if [ ${{ steps.update.outcome }} == 'success' ]; then
-          echo "update_successful=true" >> $GITHUB_OUTPUT
+        # main.py exits 0 even when it falls back to old visualizations, so the step
+        # outcome alone can't be trusted. It writes .update_failed whenever anything
+        # was not refreshed; look for that as well as for a crash.
+        reason=""
+        if [ "${{ steps.update.outcome }}" != "success" ]; then
+          reason="main.py crashed (see 'Run data update' step)"
+        elif [ -f ".update_failed" ]; then
+          reason="$(head -n1 .update_failed)"
+        fi
+
+        if [ -z "$reason" ]; then
+          echo "update_successful=true" >> "$GITHUB_OUTPUT"
           echo "Update completed successfully"
         else
-          echo "update_successful=false" >> $GITHUB_OUTPUT
-          echo "Update failed, checking for existing visualizations..."
-          
+          echo "update_successful=false" >> "$GITHUB_OUTPUT"
+          echo "stale_reason=$reason" >> "$GITHUB_OUTPUT"
+          echo "::warning title=Measles data is STALE::$reason"
+          {
+            echo "### ⚠️ Visualizations were NOT fully refreshed"
+            echo ""
+            echo "$reason"
+          } >> "$GITHUB_STEP_SUMMARY"
+
           # Check if we have visualizations to use
           if [ -d "docs" ] && [ "$(ls -A docs/*.html 2>/dev/null)" ]; then
             echo "Existing visualizations found, will use those"
-            echo "has_fallback=true" >> $GITHUB_OUTPUT
+            echo "has_fallback=true" >> "$GITHUB_OUTPUT"
           else
             echo "No existing visualizations found"
-            echo "has_fallback=false" >> $GITHUB_OUTPUT
+            echo "has_fallback=false" >> "$GITHUB_OUTPUT"
           fi
         fi
 
@@ -165,20 +169,26 @@ jobs:
           exit 1
         fi
 
+    - name: Stop tracking generated files
+      run: |
+        # __pycache__ and data/viz_backups are in .gitignore but were committed earlier,
+        # so git kept reporting them as modified/deleted. Untrack them (idempotent).
+        git rm -r -q --cached --ignore-unmatch __pycache__ data/viz_backups
+
     - name: Check for changes
       id: verify-changed-files
       run: |
-        # Explicitly add files we want to track
-        git add docs/ || true
-        git add data/backups/ || true
-        git add data/weekly_tracking/ || true
-        
-        if [ -n "$(git status --porcelain)" ]; then
-          echo "changed=true" >> $GITHUB_OUTPUT
+        # Stage only what we want to publish, then ask git whether anything is STAGED.
+        # (git status --porcelain also reports unstaged noise, which made the commit
+        # step fail with "no changes added to commit".)
+        git add docs/ data/weekly_tracking/
+
+        if ! git diff --cached --quiet; then
+          echo "changed=true" >> "$GITHUB_OUTPUT"
           echo "Changes detected:"
-          git status --short
+          git diff --cached --stat
         else
-          echo "changed=false" >> $GITHUB_OUTPUT
+          echo "changed=false" >> "$GITHUB_OUTPUT"
           echo "No changes detected"
         fi
 
@@ -187,24 +197,19 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        
-        # Show what we're committing
-        echo "Files to commit:"
-        git status --short
-        
-        # Add status message to commit
+
         if [ "${{ steps.check_status.outputs.update_successful }}" == "true" ]; then
           git commit -m "Auto-update measles visualizations - $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
         else
           git commit -m "Maintain visualizations (update failed, using existing) - $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
         fi
-        
+
         git push
 
     - name: Setup Pages
       if: always()  # Always deploy, even if update failed but we have visualizations
       uses: actions/configure-pages@v4
-      
+
     - name: Upload to GitHub Pages
       if: always()  # Always upload available visualizations
       uses: actions/upload-pages-artifact@v4
@@ -222,60 +227,10 @@ jobs:
         echo "Workflow completed at $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
         echo "Update successful: ${{ steps.check_status.outputs.update_successful }}"
         echo "Site URL: ${{ steps.deployment.outputs.page_url }}"
-        
+
         if [ "${{ steps.check_status.outputs.update_successful }}" == "false" ]; then
-          echo "⚠️  Warning: Update failed but visualizations are still available"
-        fi
-
-  # Job to clean up old backups (keep last 30 days of data backups, last 7 days of viz backups)
-  cleanup-backups:
-    runs-on: ubuntu-latest
-    needs: update-visualizations
-    if: success()
-    
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Clean up old backups
-      run: |
-        # Remove DATA backup files older than 30 days (but keep at least 5 most recent)
-        if [ -d "data/backups" ]; then
-          backup_count=$(find data/backups -type f | wc -l)
-          echo "Current data backup count: $backup_count"
-          
-          # Only delete old files if we have more than 5 backups
-          if [ $backup_count -gt 5 ]; then
-            find data/backups -name "*.csv" -mtime +30 -delete
-            find data/backups -name "*.json" -mtime +30 -delete
-          fi
-          
-          remaining_count=$(find data/backups -type f | wc -l)
-          echo "Remaining data backup files: $remaining_count"
-        fi
-        
-        # Remove VISUALIZATION backup folders older than 7 days (but keep at least 3 most recent)
-        if [ -d "data/viz_backups" ]; then
-          viz_backup_count=$(find data/viz_backups -maxdepth 1 -type d | wc -l)
-          echo "Current viz backup count: $viz_backup_count"
-          
-          # Only delete old folders if we have more than 3 backups
-          if [ $viz_backup_count -gt 3 ]; then
-            find data/viz_backups -maxdepth 1 -type d -mtime +7 -exec rm -rf {} +
-          fi
-          
-          remaining_viz_count=$(find data/viz_backups -maxdepth 1 -type d | wc -l)
-          echo "Remaining viz backup folders: $remaining_viz_count"
-        fi
-
-    - name: Commit backup cleanup
-      run: |
-        if [ -n "$(git status --porcelain)" ]; then
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add data/backups data/viz_backups
-          git commit -m "Cleanup old backup files - $(date -u +%Y-%m-%d)"
-          git push
+          echo "⚠️  Warning: ${{ steps.check_status.outputs.stale_reason }}"
+          echo "⚠️  Visualizations are still available, but they may be out of date"
         fi
 
   # Health check job to verify site is working
@@ -283,20 +238,20 @@ jobs:
     runs-on: ubuntu-latest
     needs: update-visualizations
     if: always()  # Run even if update failed
-    
+
     steps:
     - name: Wait for deployment
       run: sleep 60  # Give Pages time to deploy
-      
+
     - name: Check site health
       run: |
         # Get the repository info to construct the Pages URL
         REPO_NAME="${GITHUB_REPOSITORY#*/}"
         OWNER="${GITHUB_REPOSITORY%/*}"
         SITE_URL="https://${OWNER}.github.io/${REPO_NAME}"
-        
+
         echo "Checking site health at: $SITE_URL"
-        
+
         # Check if the main page loads
         if curl -f -s -I "$SITE_URL" > /dev/null; then
           echo "✓ Site is accessible"
@@ -304,7 +259,7 @@ jobs:
           echo "✗ Site health check failed"
           exit 1
         fi
-        
+
         # Check if key pages load
         all_passed=true
         for page in timeline.html recent_trends.html state_map.html southwest_weekly.html; do
@@ -315,12 +270,12 @@ jobs:
             all_passed=false
           fi
         done
-        
+
         if [ "$all_passed" = false ]; then
           echo "Some health checks failed"
           exit 1
         fi
-        
+
         echo "All health checks passed"
         echo "Site URL: $SITE_URL"
 
@@ -329,7 +284,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [update-visualizations, health-check]
     if: failure()
-    
+
     steps:
     - name: Notify on workflow failure
       run: |
@@ -337,8 +292,5 @@ jobs:
         echo "Failed at: $(date -u +%Y-%m-%d\ %H:%M\ UTC)"
         echo "Repository: $GITHUB_REPOSITORY"
         echo "Run ID: $GITHUB_RUN_ID"
-        
-        # Example: You can add Slack webhook, email, or other notifications here
-        # curl -X POST -H 'Content-type: application/json' \
-        #   --data '{"text":"Measles viz update failed!"}' \
-        #   $SLACK_WEBHOOK_URL
+
+    
