@@ -1,211 +1,5 @@
 [
   {
-    "date": "2026-09-05",
-    "week": "2026-W35",
-    "data": [
-      {
-        "State": "Alabama",
-        "Cases": 2
-      },
-      {
-        "State": "Alaska",
-        "Cases": 5
-      },
-      {
-        "State": "Arizona",
-        "Cases": 332
-      },
-      {
-        "State": "Arkansas",
-        "Cases": 8
-      },
-      {
-        "State": "California",
-        "Cases": 80
-      },
-      {
-        "State": "Colorado",
-        "Cases": 59
-      },
-      {
-        "State": "Connecticut",
-        "Cases": 4
-      },
-      {
-        "State": "Delaware",
-        "Cases": 23
-      },
-      {
-        "State": "Florida",
-        "Cases": 152
-      },
-      {
-        "State": "Georgia",
-        "Cases": 24
-      },
-      {
-        "State": "Hawaii",
-        "Cases": 2
-      },
-      {
-        "State": "Idaho",
-        "Cases": 17
-      },
-      {
-        "State": "Illinois",
-        "Cases": 23
-      },
-      {
-        "State": "Indiana",
-        "Cases": 18
-      },
-      {
-        "State": "Iowa",
-        "Cases": 28
-      },
-      {
-        "State": "Kansas",
-        "Cases": 92
-      },
-      {
-        "State": "Kentucky",
-        "Cases": 51
-      },
-      {
-        "State": "Louisiana",
-        "Cases": 4
-      },
-      {
-        "State": "Maine",
-        "Cases": 5
-      },
-      {
-        "State": "Maryland",
-        "Cases": 43
-      },
-      {
-        "State": "Massachusetts",
-        "Cases": 2
-      },
-      {
-        "State": "Michigan",
-        "Cases": 44
-      },
-      {
-        "State": "Minnesota",
-        "Cases": 43
-      },
-      {
-        "State": "Mississippi",
-        "Cases": 0
-      },
-      {
-        "State": "Missouri",
-        "Cases": 12
-      },
-      {
-        "State": "Montana",
-        "Cases": 41
-      },
-      {
-        "State": "Nebraska",
-        "Cases": 6
-      },
-      {
-        "State": "Nevada",
-        "Cases": 2
-      },
-      {
-        "State": "New Hampshire",
-        "Cases": 0
-      },
-      {
-        "State": "New Jersey",
-        "Cases": 13
-      },
-      {
-        "State": "New Mexico",
-        "Cases": 118
-      },
-      {
-        "State": "New York",
-        "Cases": 56
-      },
-      {
-        "State": "North Carolina",
-        "Cases": 24
-      },
-      {
-        "State": "North Dakota",
-        "Cases": 74
-      },
-      {
-        "State": "Ohio",
-        "Cases": 131
-      },
-      {
-        "State": "Oklahoma",
-        "Cases": 18
-      },
-      {
-        "State": "Oregon",
-        "Cases": 55
-      },
-      {
-        "State": "Pennsylvania",
-        "Cases": 573
-      },
-      {
-        "State": "Rhode Island",
-        "Cases": 2
-      },
-      {
-        "State": "South Carolina",
-        "Cases": 1003
-      },
-      {
-        "State": "South Dakota",
-        "Cases": 27
-      },
-      {
-        "State": "Tennessee",
-        "Cases": 14
-      },
-      {
-        "State": "Texas",
-        "Cases": 994
-      },
-      {
-        "State": "Utah",
-        "Cases": 715
-      },
-      {
-        "State": "Vermont",
-        "Cases": 3
-      },
-      {
-        "State": "Virginia",
-        "Cases": 184
-      },
-      {
-        "State": "Washington",
-        "Cases": 67
-      },
-      {
-        "State": "West Virginia",
-        "Cases": 2
-      },
-      {
-        "State": "Wisconsin",
-        "Cases": 148
-      },
-      {
-        "State": "Wyoming",
-        "Cases": 17
-      }
-    ]
-  },
-  {
     "date": "2026-09-12",
     "week": "2026-W36",
     "data": [
@@ -1640,6 +1434,213 @@
       {
         "State": "Wisconsin",
         "Cases": 292
+      },
+      {
+        "State": "Wyoming",
+        "Cases": 17
+      }
+    ]
+  },
+  {
+    "date": "2026-11-23",
+    "week": "2026-W47",
+    "cdc_last_updated": "November 19, 2026",
+    "data": [
+      {
+        "State": "Alabama",
+        "Cases": 3
+      },
+      {
+        "State": "Alaska",
+        "Cases": 5
+      },
+      {
+        "State": "Arizona",
+        "Cases": 332
+      },
+      {
+        "State": "Arkansas",
+        "Cases": 8
+      },
+      {
+        "State": "California",
+        "Cases": 81
+      },
+      {
+        "State": "Colorado",
+        "Cases": 61
+      },
+      {
+        "State": "Connecticut",
+        "Cases": 4
+      },
+      {
+        "State": "Delaware",
+        "Cases": 25
+      },
+      {
+        "State": "Florida",
+        "Cases": 157
+      },
+      {
+        "State": "Georgia",
+        "Cases": 35
+      },
+      {
+        "State": "Hawaii",
+        "Cases": 2
+      },
+      {
+        "State": "Idaho",
+        "Cases": 18
+      },
+      {
+        "State": "Illinois",
+        "Cases": 43
+      },
+      {
+        "State": "Indiana",
+        "Cases": 180
+      },
+      {
+        "State": "Iowa",
+        "Cases": 62
+      },
+      {
+        "State": "Kansas",
+        "Cases": 109
+      },
+      {
+        "State": "Kentucky",
+        "Cases": 232
+      },
+      {
+        "State": "Louisiana",
+        "Cases": 4
+      },
+      {
+        "State": "Maine",
+        "Cases": 6
+      },
+      {
+        "State": "Maryland",
+        "Cases": 70
+      },
+      {
+        "State": "Massachusetts",
+        "Cases": 2
+      },
+      {
+        "State": "Michigan",
+        "Cases": 59
+      },
+      {
+        "State": "Minnesota",
+        "Cases": 229
+      },
+      {
+        "State": "Mississippi",
+        "Cases": 0
+      },
+      {
+        "State": "Missouri",
+        "Cases": 31
+      },
+      {
+        "State": "Montana",
+        "Cases": 44
+      },
+      {
+        "State": "Nebraska",
+        "Cases": 6
+      },
+      {
+        "State": "Nevada",
+        "Cases": 2
+      },
+      {
+        "State": "New Hampshire",
+        "Cases": 0
+      },
+      {
+        "State": "New Jersey",
+        "Cases": 14
+      },
+      {
+        "State": "New Mexico",
+        "Cases": 118
+      },
+      {
+        "State": "New York",
+        "Cases": 299
+      },
+      {
+        "State": "North Carolina",
+        "Cases": 24
+      },
+      {
+        "State": "North Dakota",
+        "Cases": 74
+      },
+      {
+        "State": "Ohio",
+        "Cases": 275
+      },
+      {
+        "State": "Oklahoma",
+        "Cases": 18
+      },
+      {
+        "State": "Oregon",
+        "Cases": 58
+      },
+      {
+        "State": "Pennsylvania",
+        "Cases": 1621
+      },
+      {
+        "State": "Rhode Island",
+        "Cases": 2
+      },
+      {
+        "State": "South Carolina",
+        "Cases": 1003
+      },
+      {
+        "State": "South Dakota",
+        "Cases": 27
+      },
+      {
+        "State": "Tennessee",
+        "Cases": 19
+      },
+      {
+        "State": "Texas",
+        "Cases": 995
+      },
+      {
+        "State": "Utah",
+        "Cases": 725
+      },
+      {
+        "State": "Vermont",
+        "Cases": 7
+      },
+      {
+        "State": "Virginia",
+        "Cases": 190
+      },
+      {
+        "State": "Washington",
+        "Cases": 69
+      },
+      {
+        "State": "West Virginia",
+        "Cases": 2
+      },
+      {
+        "State": "Wisconsin",
+        "Cases": 693
       },
       {
         "State": "Wyoming",
