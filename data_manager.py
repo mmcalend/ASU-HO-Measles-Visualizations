@@ -428,13 +428,21 @@ class DataManager:
         if len(history) >= 1:
             result['current'] = pd.DataFrame(history[-1]['data'])
             logging.info(f"Loaded current week data from {history[-1]['week']} ({len(history[-1]['data'])} states)")
-        
-        if len(history) >= 2:
-            result['previous'] = pd.DataFrame(history[-2]['data'])
-            logging.info(f"Loaded previous week data from {history[-2]['week']} ({len(history[-2]['data'])} states)")
+
+        # "Previous" = the newest snapshot from an EARLIER week than this run.
+        # (This is called before today's snapshot is saved, so history[-1] may already be
+        # last week's - blindly taking history[-2] skipped a week. Runs can also miss
+        # weeks, so record the snapshot's real date for the table header.)
+        current_week = datetime.now().strftime('%Y-W%U')
+        earlier = [snap for snap in history if snap.get('week') != current_week]
+        if earlier:
+            prev = earlier[-1]
+            result['previous'] = pd.DataFrame(prev['data'])
+            result['previous_date'] = prev.get('date')
+            logging.info(f"Loaded previous week data from {prev['week']} ({prev.get('date')}, {len(prev['data'])} states)")
         else:
             logging.warning("No previous week data available yet")
-        
+
         return result
 
     def get_fresh_state_data(self, usmap_cases_raw):
@@ -744,7 +752,8 @@ class DataManager:
             # **CRITICAL FIX: Build the comparison using FRESH current + HISTORICAL previous**
             processed['weekly_comparison'] = {
                 'current': fresh_state_data,  # Fresh from CDC API (cumulative)
-                'previous': historical_comparison.get('previous', pd.DataFrame())  # Previous week from history
+                'previous': historical_comparison.get('previous', pd.DataFrame()),  # Previous week from history
+                'previous_date': historical_comparison.get('previous_date'),  # Date that snapshot was taken
             }
             
             logging.info(f"Weekly comparison ready: Current={len(fresh_state_data)} states, Previous={len(processed['weekly_comparison']['previous'])} states")
