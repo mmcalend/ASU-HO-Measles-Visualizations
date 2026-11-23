@@ -216,6 +216,40 @@ def create_measles_timeline(timeline_data):
 
         fig.update_layout(annotations=create_annotations(highlight_data))
 
+    # Current (partial) year - call out the year-to-date count from the CDC feed.
+    # Hollow marker = year still in progress. Label sits up and to the right so it
+    # doesn't overlap the previous year's callout.
+    current_year = datetime.now().year
+    current_row = df[(df['Year'] == current_year) & df['Cases'].notna()]
+    if not current_row.empty and not has_highlights[current_row.index].any():
+        row = current_row.iloc[-1]
+        cases = int(row['Cases'])
+        cases_text = f"{cases/1_000:.1f}K" if cases >= 1_000 else f"{cases:,}"
+        fig.add_trace(go.Scatter(
+            x=[row['Year']],
+            y=[row['Cases_sqrt']],
+            mode="markers",
+            marker=dict(size=20, color='white', symbol="circle",
+                        line=dict(color=colors['primary_line'], width=3)),
+            hovertemplate=(f"<b>Year:</b> {current_year} (so far)<br>"
+                           f"<b>Measles Cases:</b> {cases:,}<extra></extra>"),
+            showlegend=False
+        ))
+        fig.add_annotation(
+            x=row['Year'],
+            y=row['Cases_sqrt'],
+            text=f"<b>{current_year} (so far)</b><br>{cases_text} cases",
+            showarrow=True,
+            arrowhead=0,
+            arrowwidth=2,
+            arrowcolor='gray',
+            ax=45,
+            ay=SPACING['annotation_offset'] - 35,
+            font=dict(size=FONT_SIZES['annotation'], color='black', family=FONT_FAMILY),
+            align="center",
+            bgcolor="rgba(255, 255, 255, 0.95)"
+        )
+
     # Enhanced layout configuration with consistent spacing
     last_refreshed = datetime.now(timezone(timedelta(hours=-7))).strftime("%B %d, %Y at %I:%M %p MST")
 
@@ -1416,11 +1450,25 @@ def create_southwest_weekly_comparison(weekly_data):
     current_week_start = datetime.now() - timedelta(days=datetime.now().weekday())
     current_week_str = current_week_start.strftime('%m/%d/%y')
     
+    # Label the comparison column with the week the snapshot was ACTUALLY taken.
+    # If updates were missed it may be more than one week old - say so instead of
+    # calling it "Last Week".
+    last_week_label = 'Last Week (N/A)'
     if not previous_df.empty:
-        last_week_start = current_week_start - timedelta(days=7)
-        last_week_str = last_week_start.strftime('%m/%d/%y')
-    else:
-        last_week_str = 'N/A'
+        prev_week_start = current_week_start - timedelta(days=7)
+        previous_date = weekly_data.get('previous_date')
+        if previous_date:
+            try:
+                prev_dt = datetime.strptime(previous_date, '%Y-%m-%d')
+                prev_week_start = prev_dt - timedelta(days=prev_dt.weekday())
+            except ValueError:
+                pass
+        prev_week_str = prev_week_start.strftime('%m/%d/%y')
+        weeks_back = round((current_week_start.date() - prev_week_start.date()).days / 7)
+        if weeks_back <= 1:
+            last_week_label = f'Last Week (Week of {prev_week_str})'
+        else:
+            last_week_label = f'Previous Update (Week of {prev_week_str})'
     
     # Filter to Southwest states
     current_filtered = current_df[current_df['State'].isin(southwest_states)].copy()
@@ -1488,7 +1536,7 @@ def create_southwest_weekly_comparison(weekly_data):
     header_values = [
         '<b>State</b>', 
         f'<b>Current Week (Week of {current_week_str})</b>', 
-        f'<b>Last Week (Week of {last_week_str})</b>', 
+        f'<b>{last_week_label}</b>', 
         '<b>Change</b>', 
         '<b>State Website</b>'
     ]
