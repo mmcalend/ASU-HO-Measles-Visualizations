@@ -225,6 +225,14 @@ def create_measles_timeline(timeline_data):
         row = current_row.iloc[-1]
         cases = int(row['Cases'])
         cases_text = f"{cases/1_000:.1f}K" if cases >= 1_000 else f"{cases:,}"
+        # Milestones for the current year; anything else just shows the running count
+        current_year_events = {
+            2026: "U.S. loses measles<br>elimination status",  # PAHO announcement, Nov 17, 2026
+        }
+        if current_year in current_year_events:
+            label = f"<b>{current_year}</b><br><i>{current_year_events[current_year]}</i>"
+        else:
+            label = f"<b>{current_year} (so far)</b><br>{cases_text} cases"
         fig.add_trace(go.Scatter(
             x=[row['Year']],
             y=[row['Cases_sqrt']],
@@ -232,13 +240,16 @@ def create_measles_timeline(timeline_data):
             marker=dict(size=20, color='white', symbol="circle",
                         line=dict(color=colors['primary_line'], width=3)),
             hovertemplate=(f"<b>Year:</b> {current_year} (so far)<br>"
-                           f"<b>Measles Cases:</b> {cases:,}<extra></extra>"),
+                           f"<b>Measles Cases:</b> {cases:,}"
+                           + (f"<br><b>Event:</b> {current_year_events[current_year].replace('<br>', ' ')}"
+                              if current_year in current_year_events else "")
+                           + "<extra></extra>"),
             showlegend=False
         ))
         fig.add_annotation(
             x=row['Year'],
             y=row['Cases_sqrt'],
-            text=f"<b>{current_year} (so far)</b><br>{cases_text} cases",
+            text=label,
             showarrow=True,
             arrowhead=0,
             arrowwidth=2,
