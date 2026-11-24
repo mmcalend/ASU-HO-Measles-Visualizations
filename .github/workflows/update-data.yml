@@ -217,10 +217,19 @@ jobs:
         path: ./docs
 
     - name: Deploy to GitHub Pages
-      if: always()  # Always deploy available content
-      id: deployment
+      if: always()
+      id: deployment_try1
+      continue-on-error: true
       uses: actions/deploy-pages@v4
 
+    - name: Wait for artifact to register
+      if: always() && steps.deployment_try1.outcome == 'failure'
+      run: sleep 30
+
+    - name: Deploy to GitHub Pages (retry)
+      if: always() && steps.deployment_try1.outcome == 'failure'
+      id: deployment_retry
+      uses: actions/deploy-pages@v4
     - name: Log completion
       if: always()
       run: |
